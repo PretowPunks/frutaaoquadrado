@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppProdutosRouteImport } from './routes/_app.produtos'
+import { Route as AppEntradasRouteImport } from './routes/_app.entradas'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -33,14 +34,21 @@ const AppProdutosRoute = AppProdutosRouteImport.update({
   path: '/produtos',
   getParentRoute: () => AppRoute,
 } as any)
+const AppEntradasRoute = AppEntradasRouteImport.update({
+  id: '/entradas',
+  path: '/entradas',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/entradas': typeof AppEntradasRoute
   '/produtos': typeof AppProdutosRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/entradas': typeof AppEntradasRoute
   '/produtos': typeof AppProdutosRoute
   '/': typeof AppIndexRoute
 }
@@ -48,15 +56,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/entradas': typeof AppEntradasRoute
   '/_app/produtos': typeof AppProdutosRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/produtos'
+  fullPaths: '/' | '/login' | '/entradas' | '/produtos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/produtos' | '/'
-  id: '__root__' | '/_app' | '/login' | '/_app/produtos' | '/_app/'
+  to: '/login' | '/entradas' | '/produtos' | '/'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/login'
+    | '/_app/entradas'
+    | '/_app/produtos'
+    | '/_app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -94,15 +109,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProdutosRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/entradas': {
+      id: '/_app/entradas'
+      path: '/entradas'
+      fullPath: '/entradas'
+      preLoaderRoute: typeof AppEntradasRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppEntradasRoute: typeof AppEntradasRoute
   AppProdutosRoute: typeof AppProdutosRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppEntradasRoute: AppEntradasRoute,
   AppProdutosRoute: AppProdutosRoute,
   AppIndexRoute: AppIndexRoute,
 }
