@@ -74,13 +74,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Fruta² — Controle de Estoque" },
-      { name: "description", content: "Fruta²: controle de estoque, vendas, clientes e repasses ao fornecedor." },
-      { property: "og:title", content: "Fruta² — Controle de Estoque" },
-      { property: "og:description", content: "Fruta²: controle de estoque, vendas, clientes e repasses ao fornecedor." },
+      { title: "Fruta ² - Gerenciador" },
+      { name: "description", content: "Sistema de controle de estoque, vendas e clientes" },
+      { property: "og:title", content: "Fruta ² - Gerenciador" },
+      { property: "og:description", content: "Sistema de controle de estoque, vendas e clientes" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Fruta ² - Gerenciador" },
+      { name: "twitter:description", content: "Sistema de controle de estoque, vendas e clientes" },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/j28vXcucndeVlKOwxJWLi38oApi2/social-images/social-1778779409801-insta_polpa.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/j28vXcucndeVlKOwxJWLi38oApi2/social-images/social-1778779409801-insta_polpa.webp" },
     ],
     links: [
       {
