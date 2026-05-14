@@ -38,6 +38,27 @@ export type Database = {
         }
         Relationships: []
       }
+      data_backups: {
+        Row: {
+          created_at: string
+          id: string
+          payload: Json
+          row_counts: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payload: Json
+          row_counts: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payload?: Json
+          row_counts?: Json
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           cost_price: number
@@ -178,6 +199,33 @@ export type Database = {
           },
         ]
       }
+      supplier_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          note: string | null
+          paid_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          paid_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          paid_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -201,6 +249,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_data_backup: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
