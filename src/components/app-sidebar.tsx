@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Package, ArrowDownToLine, ShoppingCart, Users, LogOut } from "lucide-react";
+import { LayoutDashboard, Package, ArrowDownToLine, ShoppingCart, Users, LogOut, Wallet } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -20,6 +20,7 @@ const items = [
   { title: "Produtos", url: "/produtos", icon: Package },
   { title: "Entradas", url: "/entradas", icon: ArrowDownToLine },
   { title: "Vendas", url: "/vendas", icon: ShoppingCart },
+  { title: "Repasses", url: "/repasses", icon: Wallet },
   { title: "Clientes", url: "/clientes", icon: Users },
 ];
 
@@ -30,7 +31,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
-        <h2 className="text-lg font-bold text-sidebar-foreground">🍓 Polpa Manager</h2>
+        <h2 className="text-lg font-bold text-sidebar-foreground">Fruta²</h2>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
