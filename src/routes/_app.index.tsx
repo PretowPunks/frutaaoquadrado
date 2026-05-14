@@ -16,15 +16,22 @@ function Dashboard() {
     stockValue: 0,
     totalProfit: 0,
     supplierReturn: 0,
+    supplierPaid: 0,
+    supplierOwed: 0,
     pendingPayment: 0,
     lowStock: [] as { id: string; name: string; stock_quantity: number }[],
     profitByProduct: [] as { name: string; profit: number }[],
+    lastBackupAt: null as string | null,
   });
 
   useEffect(() => {
     (async () => {
       const { data: products } = await supabase.from("products").select("*");
       const { data: sales } = await supabase.from("sales").select("*, products(name)");
+      const { data: pays } = await (supabase as any)
+        .from("supplier_payments").select("amount");
+      const { data: backups } = await (supabase as any)
+        .from("data_backups").select("created_at").order("created_at", { ascending: false }).limit(1);
 
       const stockValue = (products ?? []).reduce(
         (s, p) => s + Number(p.cost_price) * p.stock_quantity,
@@ -49,29 +56,50 @@ function Dashboard() {
         byProduct.set(name, (byProduct.get(name) ?? 0) + profit);
       }
 
+      const supplierPaid = (pays ?? []).reduce((a: number, p: any) => a + Number(p.amount), 0);
+
       setStats({
         stockValue,
         totalProfit,
         supplierReturn,
+        supplierPaid,
+        supplierOwed: supplierReturn - supplierPaid,
         pendingPayment,
         lowStock,
         profitByProduct: [...byProduct.entries()]
           .map(([name, profit]) => ({ name, profit }))
           .sort((a, b) => b.profit - a.profit),
+        lastBackupAt: backups?.[0]?.created_at ?? null,
       });
     })();
   }, []);
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Painel</h2>
+      <h2 className="text-2xl font-bold">Painel Fruta²</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={<Package />} label="Valor do Estoque" value={fmt(stats.stockValue)} />
         <StatCard icon={<TrendingUp />} label="Lucro Bruto Total" value={fmt(stats.totalProfit)} />
-        <StatCard icon={<Wallet />} label="A Retornar ao Fornecedor" value={fmt(stats.supplierReturn)} />
+        <StatCard icon={<Wallet />} label="Saldo Devido ao Fornecedor" value={fmt(stats.supplierOwed)} />
         <StatCard icon={<DollarSign />} label="Vendas A Receber" value={fmt(stats.pendingPayment)} />
       </div>
+
+      <Card className="p-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+        <div>
+          <span className="text-muted-foreground">Total gerado pelas vendas (custo): </span>
+          <span className="font-semibold">{fmt(stats.supplierReturn)}</span>
+          <span className="mx-2 text-muted-foreground">·</span>
+          <span className="text-muted-foreground">Já repassado: </span>
+          <span className="font-semibold text-primary">{fmt(stats.supplierPaid)}</span>
+        </div>
+        <div className="text-muted-foreground">
+          Backup automático diário ·{" "}
+          {stats.lastBackupAt
+            ? <>último em <span className="font-medium text-foreground">{new Date(stats.lastBackupAt).toLocaleString("pt-BR")}</span></>
+            : <span className="italic">aguardando primeira execução (03:00 UTC)</span>}
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-5">

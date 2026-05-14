@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppVendasRouteImport } from './routes/_app.vendas'
+import { Route as AppRepassesRouteImport } from './routes/_app.repasses'
 import { Route as AppProdutosRouteImport } from './routes/_app.produtos'
 import { Route as AppEntradasRouteImport } from './routes/_app.entradas'
 import { Route as AppClientesRouteImport } from './routes/_app.clientes'
@@ -34,6 +35,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppVendasRoute = AppVendasRouteImport.update({
   id: '/vendas',
   path: '/vendas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRepassesRoute = AppRepassesRouteImport.update({
+  id: '/repasses',
+  path: '/repasses',
   getParentRoute: () => AppRoute,
 } as any)
 const AppProdutosRoute = AppProdutosRouteImport.update({
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/clientes': typeof AppClientesRoute
   '/entradas': typeof AppEntradasRoute
   '/produtos': typeof AppProdutosRoute
+  '/repasses': typeof AppRepassesRoute
   '/vendas': typeof AppVendasRoute
 }
 export interface FileRoutesByTo {
@@ -65,6 +72,7 @@ export interface FileRoutesByTo {
   '/clientes': typeof AppClientesRoute
   '/entradas': typeof AppEntradasRoute
   '/produtos': typeof AppProdutosRoute
+  '/repasses': typeof AppRepassesRoute
   '/vendas': typeof AppVendasRoute
   '/': typeof AppIndexRoute
 }
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   '/_app/clientes': typeof AppClientesRoute
   '/_app/entradas': typeof AppEntradasRoute
   '/_app/produtos': typeof AppProdutosRoute
+  '/_app/repasses': typeof AppRepassesRoute
   '/_app/vendas': typeof AppVendasRoute
   '/_app/': typeof AppIndexRoute
 }
@@ -86,9 +95,17 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/entradas'
     | '/produtos'
+    | '/repasses'
     | '/vendas'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/clientes' | '/entradas' | '/produtos' | '/vendas' | '/'
+  to:
+    | '/login'
+    | '/clientes'
+    | '/entradas'
+    | '/produtos'
+    | '/repasses'
+    | '/vendas'
+    | '/'
   id:
     | '__root__'
     | '/_app'
@@ -96,6 +113,7 @@ export interface FileRouteTypes {
     | '/_app/clientes'
     | '/_app/entradas'
     | '/_app/produtos'
+    | '/_app/repasses'
     | '/_app/vendas'
     | '/_app/'
   fileRoutesById: FileRoutesById
@@ -135,6 +153,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVendasRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/repasses': {
+      id: '/_app/repasses'
+      path: '/repasses'
+      fullPath: '/repasses'
+      preLoaderRoute: typeof AppRepassesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/produtos': {
       id: '/_app/produtos'
       path: '/produtos'
@@ -163,6 +188,7 @@ interface AppRouteChildren {
   AppClientesRoute: typeof AppClientesRoute
   AppEntradasRoute: typeof AppEntradasRoute
   AppProdutosRoute: typeof AppProdutosRoute
+  AppRepassesRoute: typeof AppRepassesRoute
   AppVendasRoute: typeof AppVendasRoute
   AppIndexRoute: typeof AppIndexRoute
 }
@@ -171,6 +197,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppClientesRoute: AppClientesRoute,
   AppEntradasRoute: AppEntradasRoute,
   AppProdutosRoute: AppProdutosRoute,
+  AppRepassesRoute: AppRepassesRoute,
   AppVendasRoute: AppVendasRoute,
   AppIndexRoute: AppIndexRoute,
 }
@@ -184,13 +211,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
