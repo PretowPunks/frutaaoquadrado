@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { Trash2, FileText, Printer } from "lucide-react";
@@ -19,7 +20,8 @@ function RepassesPage() {
   const [payments, setPayments] = useState<any[]>([]);
   const [supplierTotal, setSupplierTotal] = useState(0);
   const [pending, setPending] = useState<PendingItem[]>([]);
-  const [pendingSaleIds, setPendingSaleIds] = useState<string[]>([]);
+  const [saleIdsByProduct, setSaleIdsByProduct] = useState<Record<string, string[]>>({});
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [note, setNote] = useState("");
   const [paidAt, setPaidAt] = useState<string>(new Date().toISOString().slice(0, 10));
   const [openReceipt, setOpenReceipt] = useState<null | { payment: any; items: any[] }>(null);
@@ -35,8 +37,8 @@ function RepassesPage() {
 
     // Agrupa vendas pendentes (sem repasse) por produto
     const pend = sales.filter((s) => !s.supplier_payment_id);
-    setPendingSaleIds(pend.map((s) => s.id));
     const grouped = new Map<string, PendingItem>();
+    const idsMap: Record<string, string[]> = {};
     for (const s of pend) {
       const key = s.product_id;
       const name = s.products?.name ?? "—";
@@ -44,20 +46,32 @@ function RepassesPage() {
       cur.quantity += s.quantity;
       cur.total_cost += Number(s.unit_cost) * s.quantity;
       grouped.set(key, cur);
+      (idsMap[key] ||= []).push(s.id);
     }
-    setPending(Array.from(grouped.values()).sort((a, b) => a.product_name.localeCompare(b.product_name)));
+    const list = Array.from(grouped.values()).sort((a, b) => a.product_name.localeCompare(b.product_name));
+    setPending(list);
+    setSaleIdsByProduct(idsMap);
+    setSelected(new Set(list.map((p) => p.product_id))); // por padrão tudo selecionado
   };
   useEffect(() => { load(); }, []);
 
-  const pendingTotal = pending.reduce((a, p) => a + p.total_cost, 0);
+  const selectedItems = pending.filter((p) => selected.has(p.product_id));
+  const selectedTotal = selectedItems.reduce((a, p) => a + p.total_cost, 0);
+  const allSelected = pending.length > 0 && selected.size === pending.length;
+  const toggle = (id: string) => {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelected(next);
+  };
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(pending.map((p) => p.product_id)));
 
   const submit = async () => {
-    if (pending.length === 0) return toast.error("Não há vendas pendentes para repassar");
+    if (selectedItems.length === 0) return toast.error("Selecione ao menos um produto para repassar");
     const { data: u } = await supabase.auth.getUser();
 
     // 1. cria o repasse
     const { data: pay, error: e1 } = await (supabase as any).from("supplier_payments").insert({
-      amount: pendingTotal,
+      amount: selectedTotal,
       note: note || null,
       paid_at: new Date(paidAt).toISOString(),
       created_by: u.user?.id,
@@ -65,7 +79,7 @@ function RepassesPage() {
     if (e1 || !pay) return toast.error(e1?.message ?? "Erro ao criar repasse");
 
     // 2. snapshot de itens
-    const items = pending.map((p) => ({
+    const items = selectedItems.map((p) => ({
       payment_id: pay.id,
       product_id: p.product_id,
       product_name: p.product_name,
@@ -76,8 +90,9 @@ function RepassesPage() {
     const { error: e2 } = await (supabase as any).from("supplier_payment_items").insert(items);
     if (e2) return toast.error(e2.message);
 
-    // 3. vincula vendas ao repasse
-    const { error: e3 } = await (supabase as any).from("sales").update({ supplier_payment_id: pay.id }).in("id", pendingSaleIds);
+    // 3. vincula vendas selecionadas ao repasse
+    const saleIds = selectedItems.flatMap((p) => saleIdsByProduct[p.product_id] ?? []);
+    const { error: e3 } = await (supabase as any).from("sales").update({ supplier_payment_id: pay.id }).in("id", saleIds);
     if (e3) return toast.error(e3.message);
 
     toast.success("Repasse registrado");
