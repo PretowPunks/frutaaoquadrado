@@ -122,6 +122,7 @@ export type Database = {
           product_id: string
           quantity: number
           status: Database["public"]["Enums"]["sale_status"]
+          supplier_payment_id: string | null
           unit_cost: number
           unit_sale_price: number
         }
@@ -133,6 +134,7 @@ export type Database = {
           product_id: string
           quantity: number
           status?: Database["public"]["Enums"]["sale_status"]
+          supplier_payment_id?: string | null
           unit_cost: number
           unit_sale_price: number
         }
@@ -144,6 +146,7 @@ export type Database = {
           product_id?: string
           quantity?: number
           status?: Database["public"]["Enums"]["sale_status"]
+          supplier_payment_id?: string | null
           unit_cost?: number
           unit_sale_price?: number
         }
@@ -160,6 +163,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_supplier_payment_id_fkey"
+            columns: ["supplier_payment_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_payments"
             referencedColumns: ["id"]
           },
         ]
@@ -195,6 +205,47 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_payment_items: {
+        Row: {
+          created_at: string
+          id: string
+          payment_id: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          total_cost: number
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payment_id: string
+          product_id?: string | null
+          product_name: string
+          quantity: number
+          total_cost: number
+          unit_cost: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payment_id?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          total_cost?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_payment_items_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_payments"
             referencedColumns: ["id"]
           },
         ]

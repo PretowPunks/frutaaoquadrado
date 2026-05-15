@@ -6,46 +6,97 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
-import { Trash2 } from "lucide-react";
+import { Trash2, FileText, Printer } from "lucide-react";
 
 export const Route = createFileRoute("/_app/repasses")({ component: RepassesPage });
+
+type PendingItem = { product_id: string; product_name: string; quantity: number; unit_cost: number; total_cost: number };
 
 function RepassesPage() {
   const [payments, setPayments] = useState<any[]>([]);
   const [supplierTotal, setSupplierTotal] = useState(0);
-  const [amount, setAmount] = useState<number>(0);
+  const [pending, setPending] = useState<PendingItem[]>([]);
+  const [pendingSaleIds, setPendingSaleIds] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [paidAt, setPaidAt] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [openReceipt, setOpenReceipt] = useState<null | { payment: any; items: any[] }>(null);
 
   const load = async () => {
-    const [{ data: pays }, { data: sales }] = await Promise.all([
+    const [paysRes, salesRes] = await Promise.all([
       (supabase as any).from("supplier_payments").select("*").order("paid_at", { ascending: false }),
-      supabase.from("sales").select("unit_cost, quantity"),
+      supabase.from("sales").select("id, product_id, quantity, unit_cost, supplier_payment_id, products(name)"),
     ]);
-    setPayments(pays ?? []);
-    setSupplierTotal((sales ?? []).reduce((a: number, s: any) => a + Number(s.unit_cost) * s.quantity, 0));
+    setPayments(paysRes.data ?? []);
+    const sales = (salesRes.data ?? []) as any[];
+    setSupplierTotal(sales.reduce((a, s) => a + Number(s.unit_cost) * s.quantity, 0));
+
+    // Agrupa vendas pendentes (sem repasse) por produto
+    const pend = sales.filter((s) => !s.supplier_payment_id);
+    setPendingSaleIds(pend.map((s) => s.id));
+    const grouped = new Map<string, PendingItem>();
+    for (const s of pend) {
+      const key = s.product_id;
+      const name = s.products?.name ?? "—";
+      const cur = grouped.get(key) ?? { product_id: key, product_name: name, quantity: 0, unit_cost: Number(s.unit_cost), total_cost: 0 };
+      cur.quantity += s.quantity;
+      cur.total_cost += Number(s.unit_cost) * s.quantity;
+      grouped.set(key, cur);
+    }
+    setPending(Array.from(grouped.values()).sort((a, b) => a.product_name.localeCompare(b.product_name)));
   };
   useEffect(() => { load(); }, []);
 
+  const pendingTotal = pending.reduce((a, p) => a + p.total_cost, 0);
+
   const submit = async () => {
-    if (!amount || amount <= 0) return toast.error("Informe um valor válido");
+    if (pending.length === 0) return toast.error("Não há vendas pendentes para repassar");
     const { data: u } = await supabase.auth.getUser();
-    const { error } = await (supabase as any).from("supplier_payments").insert({
-      amount,
+
+    // 1. cria o repasse
+    const { data: pay, error: e1 } = await (supabase as any).from("supplier_payments").insert({
+      amount: pendingTotal,
       note: note || null,
       paid_at: new Date(paidAt).toISOString(),
       created_by: u.user?.id,
-    });
-    if (error) return toast.error(error.message);
+    }).select().single();
+    if (e1 || !pay) return toast.error(e1?.message ?? "Erro ao criar repasse");
+
+    // 2. snapshot de itens
+    const items = pending.map((p) => ({
+      payment_id: pay.id,
+      product_id: p.product_id,
+      product_name: p.product_name,
+      quantity: p.quantity,
+      unit_cost: p.unit_cost,
+      total_cost: p.total_cost,
+    }));
+    const { error: e2 } = await (supabase as any).from("supplier_payment_items").insert(items);
+    if (e2) return toast.error(e2.message);
+
+    // 3. vincula vendas ao repasse
+    const { error: e3 } = await (supabase as any).from("sales").update({ supplier_payment_id: pay.id }).in("id", pendingSaleIds);
+    if (e3) return toast.error(e3.message);
+
     toast.success("Repasse registrado");
-    setAmount(0); setNote("");
-    load();
+    setNote("");
+    await load();
+    // abre comprovante automaticamente
+    openReceiptFor(pay.id);
+  };
+
+  const openReceiptFor = async (paymentId: string) => {
+    const [{ data: pay }, { data: items }] = await Promise.all([
+      (supabase as any).from("supplier_payments").select("*").eq("id", paymentId).single(),
+      (supabase as any).from("supplier_payment_items").select("*").eq("payment_id", paymentId).order("product_name"),
+    ]);
+    setOpenReceipt({ payment: pay, items: items ?? [] });
   };
 
   const remove = async (id: string) => {
-    if (!confirm("Excluir este repasse?")) return;
+    if (!confirm("Excluir este repasse? As vendas vinculadas voltarão para 'pendentes'.")) return;
     const { error } = await (supabase as any).from("supplier_payments").delete().eq("id", id);
     if (error) return toast.error(error.message);
     load();
@@ -74,22 +125,57 @@ function RepassesPage() {
       </div>
 
       <Card className="p-5 space-y-4">
-        <h3 className="font-semibold">Registrar novo repasse</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div>
-            <Label>Valor (R$)</Label>
-            <Input type="number" step="0.01" min={0} value={amount || ""} onChange={(e) => setAmount(Number(e.target.value))} />
-          </div>
-          <div>
-            <Label>Data do pagamento</Label>
-            <Input type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} />
-          </div>
-          <div className="md:col-span-2">
-            <Label>Observação</Label>
-            <Textarea rows={1} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Opcional (ex: PIX, recibo nº...)" />
-          </div>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">Vendas pendentes de repasse</h3>
+          <span className="text-sm text-muted-foreground">{pending.length} produto(s) — total {fmtBRL(pendingTotal)}</span>
         </div>
-        <Button onClick={submit}>Registrar Repasse</Button>
+
+        {pending.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhuma venda pendente. Todas as vendas já foram repassadas.</p>
+        ) : (
+          <>
+            <div className="overflow-auto rounded border">
+              <table className="w-full text-sm">
+                <thead className="bg-secondary text-secondary-foreground">
+                  <tr>
+                    <th className="text-left p-2">Produto</th>
+                    <th className="text-right p-2">Qtd</th>
+                    <th className="text-right p-2">Custo unit.</th>
+                    <th className="text-right p-2">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pending.map((p) => (
+                    <tr key={p.product_id} className="border-t">
+                      <td className="p-2">{p.product_name}</td>
+                      <td className="p-2 text-right">{p.quantity}</td>
+                      <td className="p-2 text-right">{fmtBRL(p.unit_cost)}</td>
+                      <td className="p-2 text-right font-semibold">{fmtBRL(p.total_cost)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-muted/50">
+                  <tr>
+                    <td className="p-2 font-bold" colSpan={3}>Total a repassar</td>
+                    <td className="p-2 text-right font-bold">{fmtBRL(pendingTotal)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <Label>Data do pagamento</Label>
+                <Input type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Observação</Label>
+                <Textarea rows={1} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Opcional (ex: PIX, recibo nº...)" />
+              </div>
+            </div>
+            <Button onClick={submit}>Registrar Repasse de {fmtBRL(pendingTotal)}</Button>
+          </>
+        )}
       </Card>
 
       <Card className="p-0 overflow-hidden">
@@ -103,7 +189,7 @@ function RepassesPage() {
                 <th className="text-left p-3">Data</th>
                 <th className="text-left p-3">Observação</th>
                 <th className="text-right p-3">Valor</th>
-                <th className="p-3"></th>
+                <th className="p-3 text-right">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -112,7 +198,10 @@ function RepassesPage() {
                   <td className="p-3">{new Date(p.paid_at).toLocaleDateString("pt-BR")}</td>
                   <td className="p-3">{p.note ?? "—"}</td>
                   <td className="p-3 text-right font-semibold">{fmtBRL(p.amount)}</td>
-                  <td className="p-3 text-right">
+                  <td className="p-3 text-right space-x-1">
+                    <Button size="sm" variant="outline" onClick={() => openReceiptFor(p.id)}>
+                      <FileText className="h-4 w-4 mr-1" /> Comprovante
+                    </Button>
                     <Button size="icon" variant="ghost" onClick={() => remove(p.id)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -123,6 +212,78 @@ function RepassesPage() {
           </table>
         )}
       </Card>
+
+      <Dialog open={!!openReceipt} onOpenChange={(o) => !o && setOpenReceipt(null)}>
+        <DialogContent className="max-w-2xl print:shadow-none">
+          <DialogHeader>
+            <DialogTitle>Comprovante de Repasse — Fruta²</DialogTitle>
+          </DialogHeader>
+          {openReceipt && (
+            <div id="receipt-printable" className="space-y-4 text-sm">
+              <div className="flex justify-between border-b pb-2">
+                <div>
+                  <p className="text-muted-foreground">Data do pagamento</p>
+                  <p className="font-semibold">{new Date(openReceipt.payment.paid_at).toLocaleDateString("pt-BR")}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-muted-foreground">Repasse nº</p>
+                  <p className="font-mono text-xs">{openReceipt.payment.id.slice(0, 8).toUpperCase()}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="font-semibold mb-2">Produtos vendidos incluídos neste repasse:</p>
+                <div className="overflow-auto rounded border">
+                  <table className="w-full">
+                    <thead className="bg-secondary text-secondary-foreground">
+                      <tr>
+                        <th className="text-left p-2">Produto</th>
+                        <th className="text-right p-2">Qtd</th>
+                        <th className="text-right p-2">Custo unit.</th>
+                        <th className="text-right p-2">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {openReceipt.items.map((it) => (
+                        <tr key={it.id} className="border-t">
+                          <td className="p-2">{it.product_name}</td>
+                          <td className="p-2 text-right">{it.quantity}</td>
+                          <td className="p-2 text-right">{fmtBRL(it.unit_cost)}</td>
+                          <td className="p-2 text-right font-semibold">{fmtBRL(it.total_cost)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-muted/50">
+                      <tr>
+                        <td className="p-2 font-bold" colSpan={3}>TOTAL DO REPASSE</td>
+                        <td className="p-2 text-right font-bold">{fmtBRL(openReceipt.payment.amount)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+
+              {openReceipt.payment.note && (
+                <div className="text-sm">
+                  <p className="text-muted-foreground">Observação:</p>
+                  <p>{openReceipt.payment.note}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-8 pt-8 text-center text-xs">
+                <div className="border-t pt-2">Assinatura — Fruta²</div>
+                <div className="border-t pt-2">Assinatura — Fornecedor</div>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="print:hidden">
+            <Button variant="outline" onClick={() => setOpenReceipt(null)}>Fechar</Button>
+            <Button onClick={() => window.print()}>
+              <Printer className="h-4 w-4 mr-2" /> Imprimir / Salvar PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
