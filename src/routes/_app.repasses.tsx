@@ -140,9 +140,18 @@ function RepassesPage() {
       </div>
 
       <Card className="p-5 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="font-semibold">Vendas pendentes de repasse</h3>
-          <span className="text-sm text-muted-foreground">{pending.length} produto(s) — total {fmtBRL(pendingTotal)}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">
+              {selected.size}/{pending.length} selecionado(s) — {fmtBRL(selectedTotal)}
+            </span>
+            {pending.length > 0 && (
+              <Button size="sm" variant="outline" onClick={toggleAll}>
+                {allSelected ? "Desmarcar todos" : "Selecionar todos"}
+              </Button>
+            )}
+          </div>
         </div>
 
         {pending.length === 0 ? (
@@ -153,6 +162,9 @@ function RepassesPage() {
               <table className="w-full text-sm">
                 <thead className="bg-secondary text-secondary-foreground">
                   <tr>
+                    <th className="p-2 w-10">
+                      <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
+                    </th>
                     <th className="text-left p-2">Produto</th>
                     <th className="text-right p-2">Qtd</th>
                     <th className="text-right p-2">Custo unit.</th>
@@ -162,6 +174,9 @@ function RepassesPage() {
                 <tbody>
                   {pending.map((p) => (
                     <tr key={p.product_id} className="border-t">
+                      <td className="p-2">
+                        <Checkbox checked={selected.has(p.product_id)} onCheckedChange={() => toggle(p.product_id)} />
+                      </td>
                       <td className="p-2">{p.product_name}</td>
                       <td className="p-2 text-right">{p.quantity}</td>
                       <td className="p-2 text-right">{fmtBRL(p.unit_cost)}</td>
@@ -171,8 +186,8 @@ function RepassesPage() {
                 </tbody>
                 <tfoot className="bg-muted/50">
                   <tr>
-                    <td className="p-2 font-bold" colSpan={3}>Total a repassar</td>
-                    <td className="p-2 text-right font-bold">{fmtBRL(pendingTotal)}</td>
+                    <td className="p-2 font-bold" colSpan={4}>Total selecionado</td>
+                    <td className="p-2 text-right font-bold">{fmtBRL(selectedTotal)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -188,7 +203,9 @@ function RepassesPage() {
                 <Textarea rows={1} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Opcional (ex: PIX, recibo nº...)" />
               </div>
             </div>
-            <Button onClick={submit}>Registrar Repasse de {fmtBRL(pendingTotal)}</Button>
+            <Button onClick={submit} disabled={selected.size === 0}>
+              Registrar Repasse de {fmtBRL(selectedTotal)}
+            </Button>
           </>
         )}
       </Card>
