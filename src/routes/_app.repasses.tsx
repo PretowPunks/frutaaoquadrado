@@ -29,14 +29,14 @@ function RepassesPage() {
   const load = async () => {
     const [paysRes, salesRes] = await Promise.all([
       (supabase as any).from("supplier_payments").select("*").order("paid_at", { ascending: false }),
-      supabase.from("sales").select("id, product_id, quantity, unit_cost, supplier_payment_id, products(name)"),
+      supabase.from("sales").select("id, product_id, quantity, unit_cost, supplier_payment_id, status, products(name)"),
     ]);
     setPayments(paysRes.data ?? []);
     const sales = (salesRes.data ?? []) as any[];
     setSupplierTotal(sales.reduce((a, s) => a + Number(s.unit_cost) * s.quantity, 0));
 
     // Agrupa vendas pendentes (sem repasse) por produto
-    const pend = sales.filter((s) => !s.supplier_payment_id);
+    const pend = sales.filter((s: any) => !s.supplier_payment_id && s.status !== "scheduled");
     const grouped = new Map<string, PendingItem>();
     const idsMap: Record<string, string[]> = {};
     for (const s of pend) {
