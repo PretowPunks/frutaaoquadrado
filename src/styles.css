@@ -144,7 +144,22 @@
 }
 
 @media print {
+  @page { margin: 12mm; }
+  html, body { background: white !important; height: auto !important; overflow: visible !important; }
   body * { visibility: hidden !important; }
   #receipt-printable, #receipt-printable * { visibility: visible !important; }
-  #receipt-printable { position: absolute; left: 0; top: 0; width: 100%; padding: 24px; }
+  #receipt-printable {
+    position: absolute !important;
+    left: 0; top: 0; right: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    transform: none !important;
+    color: #000 !important;
+    background: white !important;
+  }
+  #receipt-printable table { page-break-inside: auto; }
+  #receipt-printable tr { page-break-inside: avoid; page-break-after: auto; }
+  #receipt-printable thead { display: table-header-group; }
 }
