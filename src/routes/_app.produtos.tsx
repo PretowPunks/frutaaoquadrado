@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Download, Search } from "lucide-react";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 
@@ -25,6 +25,7 @@ function ProdutosPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [editing, setEditing] = useState<Product | null>(null);
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
 
   const load = async () => {
     const { data } = await supabase.from("products").select("*").order("name");
@@ -83,6 +84,20 @@ function ProdutosPage() {
     toast.success(`${items.length} itens exportados`);
   };
 
+  const filtered = products.filter((p) => {
+    const t = q.toLowerCase().trim();
+    if (!t) return true;
+    return [
+      p.name,
+      String(p.cost_price),
+      String(p.sale_price),
+      String(p.stock_quantity),
+      String(p.low_stock_threshold),
+      fmtBRL(p.cost_price),
+      fmtBRL(p.sale_price),
+    ].some((v) => v.toLowerCase().includes(t));
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -97,6 +112,10 @@ function ProdutosPage() {
         </Dialog>
         </div>
       </div>
+      <div className="relative max-w-md">
+        <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
+        <Input className="pl-9" placeholder="Buscar em todos os campos..." value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
       <Card className="p-0 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-secondary text-secondary-foreground">
@@ -110,7 +129,7 @@ function ProdutosPage() {
             </tr>
           </thead>
           <tbody>
-            {products.map((p) => (
+            {filtered.map((p) => (
               <tr key={p.id} className="border-t hover:bg-muted/30">
                 <td className="p-3 font-medium">{p.name}</td>
                 <td className="p-3 text-right">{fmtBRL(p.cost_price)}</td>
