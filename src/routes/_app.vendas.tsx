@@ -9,6 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
+import { Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const Route = createFileRoute("/_app/vendas")({ component: VendasPage });
 
@@ -20,7 +28,8 @@ function VendasPage() {
   const [customerId, setCustomerId] = useState("");
   const [qty, setQty] = useState(1);
   const [unitSale, setUnitSale] = useState(0);
-  const [status, setStatus] = useState<"paid" | "unpaid">("paid");
+  const [status, setStatus] = useState<"paid" | "unpaid" | "scheduled">("paid");
+  const [deliveryDate, setDeliveryDate] = useState<string>("");
 
   const load = async () => {
     const [{ data: p }, { data: c }, { data: s }] = await Promise.all([
@@ -42,6 +51,7 @@ function VendasPage() {
     if (!p) return toast.error("Selecione um produto");
     if (qty < 1) return toast.error("Quantidade inválida");
     if (qty > p.stock_quantity) return toast.error("Estoque insuficiente");
+    if (status === "scheduled" && !deliveryDate) return toast.error("Informe a data de entrega");
     const { data: u } = await supabase.auth.getUser();
     const { error } = await supabase.from("sales").insert({
       product_id: productId,
@@ -50,21 +60,34 @@ function VendasPage() {
       unit_sale_price: unitSale,
       unit_cost: Number(p.cost_price),
       status,
+      delivery_date: status === "scheduled" ? deliveryDate : null,
       created_by: u.user?.id,
-    });
+    } as any);
     if (error) return toast.error(error.message);
     toast.success("Venda registrada");
-    setQty(1); load();
+    setQty(1); setDeliveryDate(""); load();
   };
 
-  const togglePaid = async (s: any) => {
-    const { error } = await supabase.from("sales").update({ status: s.status === "paid" ? "unpaid" : "paid" }).eq("id", s.id);
+  const setSaleStatus = async (s: any, next: "paid" | "unpaid" | "scheduled") => {
+    const patch: any = { status: next };
+    if (next !== "scheduled") patch.delivery_date = null;
+    const { error } = await supabase.from("sales").update(patch).eq("id", s.id);
     if (error) return toast.error(error.message);
     load();
   };
 
-  const supplierReturn = sales.reduce((acc, s) => acc + Number(s.unit_cost) * s.quantity, 0);
+  const removeSale = async (s: any) => {
+    const { error } = await supabase.from("sales").delete().eq("id", s.id);
+    if (error) return toast.error(error.message);
+    toast.success("Venda excluída, estoque restaurado");
+    load();
+  };
+
+  const supplierReturn = sales
+    .filter((s) => s.status !== "scheduled")
+    .reduce((acc, s) => acc + Number(s.unit_cost) * s.quantity, 0);
   const pending = sales.filter((s) => s.status === "unpaid").reduce((a, s) => a + Number(s.unit_sale_price) * s.quantity, 0);
+  const scheduledCount = sales.filter((s) => s.status === "scheduled").length;
 
   return (
     <div className="space-y-6">
@@ -102,14 +125,24 @@ function VendasPage() {
               <SelectContent>
                 <SelectItem value="paid">Pago</SelectItem>
                 <SelectItem value="unpaid">A Pagar</SelectItem>
+                <SelectItem value="scheduled">Agendada (entrega futura)</SelectItem>
               </SelectContent>
             </Select>
           </div>
+          {status === "scheduled" && (
+            <div>
+              <Label>Data de entrega</Label>
+              <Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} />
+            </div>
+          )}
           <div className="flex items-end"><Button onClick={submit} className="w-full">Registrar Venda</Button></div>
         </div>
+        <p className="text-xs text-muted-foreground">
+          Vendas agendadas dão baixa no estoque imediatamente. Clique na etiqueta para concluir como Pago / A Pagar, ou exclua para devolver ao estoque.
+        </p>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-5">
           <p className="text-xs text-muted-foreground">A retornar ao fornecedor (todas as vendas)</p>
           <p className="text-2xl font-bold text-primary">{fmtBRL(supplierReturn)}</p>
@@ -117,6 +150,10 @@ function VendasPage() {
         <Card className="p-5">
           <p className="text-xs text-muted-foreground">Vendas A Pagar (pendentes)</p>
           <p className="text-2xl font-bold">{fmtBRL(pending)}</p>
+        </Card>
+        <Card className="p-5">
+          <p className="text-xs text-muted-foreground">Entregas agendadas</p>
+          <p className="text-2xl font-bold">{scheduledCount}</p>
         </Card>
       </div>
 
@@ -128,7 +165,7 @@ function VendasPage() {
               <th className="text-left p-3">Data</th><th className="text-left p-3">Produto</th>
               <th className="text-left p-3">Cliente</th><th className="text-right p-3">Qtd</th>
               <th className="text-right p-3">Valor Un.</th><th className="text-right p-3">Total</th>
-              <th className="text-center p-3">Status</th>
+              <th className="text-center p-3">Status</th><th className="text-center p-3">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -141,11 +178,46 @@ function VendasPage() {
                 <td className="p-3 text-right">{fmtBRL(s.unit_sale_price)}</td>
                 <td className="p-3 text-right font-semibold">{fmtBRL(Number(s.unit_sale_price) * s.quantity)}</td>
                 <td className="p-3 text-center">
-                  <button onClick={() => togglePaid(s)}>
-                    <Badge variant={s.status === "paid" ? "default" : "destructive"}>
-                      {s.status === "paid" ? "Pago" : "A Pagar"}
-                    </Badge>
-                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button>
+                        <Badge
+                          variant={
+                            s.status === "paid" ? "default" :
+                            s.status === "scheduled" ? "secondary" : "destructive"
+                          }
+                        >
+                          {s.status === "paid" && "Pago"}
+                          {s.status === "unpaid" && "A Pagar"}
+                          {s.status === "scheduled" && `Entrega ${s.delivery_date ? new Date(s.delivery_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`}
+                        </Badge>
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => setSaleStatus(s, "paid")}>Marcar como Pago</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSaleStatus(s, "unpaid")}>Marcar como A Pagar</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSaleStatus(s, "scheduled")}>Marcar como Agendada</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </td>
+                <td className="p-3 text-center">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4" /></Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir venda?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          O produto voltará ao estoque automaticamente. Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => removeSale(s)}>Excluir</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </td>
               </tr>
             ))}
