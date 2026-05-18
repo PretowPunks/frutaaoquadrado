@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
-import { Trash2 } from "lucide-react";
+import { Trash2, Search } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -30,6 +30,7 @@ function VendasPage() {
   const [unitSale, setUnitSale] = useState(0);
   const [status, setStatus] = useState<"paid" | "unpaid" | "scheduled">("paid");
   const [deliveryDate, setDeliveryDate] = useState<string>("");
+  const [q, setQ] = useState("");
 
   const load = async () => {
     const [{ data: p }, { data: c }, { data: s }] = await Promise.all([
@@ -88,6 +89,25 @@ function VendasPage() {
     .reduce((acc, s) => acc + Number(s.unit_cost) * s.quantity, 0);
   const pending = sales.filter((s) => s.status === "unpaid").reduce((a, s) => a + Number(s.unit_sale_price) * s.quantity, 0);
   const scheduledCount = sales.filter((s) => s.status === "scheduled").length;
+
+  const statusLabel = (s: any) =>
+    s.status === "paid" ? "Pago" :
+    s.status === "unpaid" ? "A Pagar" :
+    `Agendada ${s.delivery_date ? new Date(s.delivery_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`;
+
+  const filteredSales = sales.filter((s) => {
+    const t = q.toLowerCase().trim();
+    if (!t) return true;
+    return [
+      s.products?.name ?? "",
+      s.customers?.name ?? "",
+      String(s.quantity),
+      fmtBRL(s.unit_sale_price),
+      fmtBRL(Number(s.unit_sale_price) * s.quantity),
+      statusLabel(s),
+      new Date(s.created_at).toLocaleString("pt-BR"),
+    ].some((v) => String(v).toLowerCase().includes(t));
+  });
 
   return (
     <div className="space-y-6">
@@ -158,7 +178,13 @@ function VendasPage() {
       </div>
 
       <Card className="p-0 overflow-hidden">
-        <h3 className="p-4 font-semibold border-b">Histórico de Vendas</h3>
+        <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
+          <h3 className="font-semibold">Histórico de Vendas</h3>
+          <div className="relative w-full sm:w-72">
+            <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
+            <Input className="pl-9" placeholder="Buscar em todos os campos..." value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+        </div>
         <table className="w-full text-sm">
           <thead className="bg-secondary text-secondary-foreground">
             <tr>
@@ -169,7 +195,7 @@ function VendasPage() {
             </tr>
           </thead>
           <tbody>
-            {sales.map((s) => (
+            {filteredSales.map((s) => (
               <tr key={s.id} className="border-t">
                 <td className="p-3">{new Date(s.created_at).toLocaleString("pt-BR")}</td>
                 <td className="p-3">{s.products?.name}</td>
