@@ -50,7 +50,11 @@ function ClientesPage() {
     load();
   };
 
-  const filtered = customers.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = customers.filter((c) => {
+    const t = search.toLowerCase().trim();
+    if (!t) return true;
+    return [c.name, c.phone ?? "", c.address ?? ""].some((v) => String(v).toLowerCase().includes(t));
+  });
 
   return (
     <div className="space-y-6">
@@ -74,7 +78,7 @@ function ClientesPage() {
         <Card className="p-4 space-y-3 lg:col-span-1">
           <div className="relative">
             <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
-            <Input className="pl-9" placeholder="Buscar pelo nome..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input className="pl-9" placeholder="Buscar por nome, telefone ou endereço..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <ul className="divide-y max-h-[60vh] overflow-auto">
             {filtered.map((c) => (
