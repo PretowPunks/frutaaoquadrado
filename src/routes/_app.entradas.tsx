@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
+import { Search } from "lucide-react";
 
 export const Route = createFileRoute("/_app/entradas")({ component: EntradasPage });
 
@@ -17,6 +18,7 @@ function EntradasPage() {
   const [productId, setProductId] = useState("");
   const [qty, setQty] = useState(1);
   const [unitCost, setUnitCost] = useState(0);
+  const [q, setQ] = useState("");
 
   const load = async () => {
     const { data: p } = await supabase.from("products").select("*").order("name");
@@ -43,6 +45,19 @@ function EntradasPage() {
     setQty(1); load();
   };
 
+  const filtered = entries.filter((e) => {
+    const t = q.toLowerCase().trim();
+    if (!t) return true;
+    return [
+      e.products?.name ?? "",
+      String(e.quantity),
+      String(e.unit_cost),
+      fmtBRL(e.unit_cost),
+      fmtBRL(Number(e.unit_cost) * e.quantity),
+      new Date(e.created_at).toLocaleString("pt-BR"),
+    ].some((v) => String(v).toLowerCase().includes(t));
+  });
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Entradas de Estoque</h2>
@@ -64,13 +79,19 @@ function EntradasPage() {
       </Card>
 
       <Card className="p-0 overflow-hidden">
-        <h3 className="p-4 font-semibold border-b">Últimas entradas</h3>
+        <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
+          <h3 className="font-semibold">Últimas entradas</h3>
+          <div className="relative w-full sm:w-72">
+            <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
+            <Input className="pl-9" placeholder="Buscar em todos os campos..." value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+        </div>
         <table className="w-full text-sm">
           <thead className="bg-secondary text-secondary-foreground">
             <tr><th className="text-left p-3">Data</th><th className="text-left p-3">Produto</th><th className="text-right p-3">Qtd</th><th className="text-right p-3">Valor Un.</th><th className="text-right p-3">Total</th></tr>
           </thead>
           <tbody>
-            {entries.map((e) => (
+            {filtered.map((e) => (
               <tr key={e.id} className="border-t">
                 <td className="p-3">{new Date(e.created_at).toLocaleString("pt-BR")}</td>
                 <td className="p-3">{e.products?.name}</td>
