@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
-import { Trash2, FileText, Printer } from "lucide-react";
+import { Trash2, FileText, Printer, Search } from "lucide-react";
 
 export const Route = createFileRoute("/_app/repasses")({ component: RepassesPage });
 
@@ -25,6 +25,8 @@ function RepassesPage() {
   const [note, setNote] = useState("");
   const [paidAt, setPaidAt] = useState<string>(new Date().toISOString().slice(0, 10));
   const [openReceipt, setOpenReceipt] = useState<null | { payment: any; items: any[] }>(null);
+  const [qPend, setQPend] = useState("");
+  const [qHist, setQHist] = useState("");
 
   const load = async () => {
     const [paysRes, salesRes] = await Promise.all([
@@ -120,6 +122,23 @@ function RepassesPage() {
   const paid = payments.reduce((a, p) => a + Number(p.amount), 0);
   const owed = supplierTotal - paid;
 
+  const filteredPending = pending.filter((p) => {
+    const t = qPend.toLowerCase().trim();
+    if (!t) return true;
+    return [p.product_name, String(p.quantity), fmtBRL(p.unit_cost), fmtBRL(p.total_cost)]
+      .some((v) => v.toLowerCase().includes(t));
+  });
+  const filteredPayments = payments.filter((p) => {
+    const t = qHist.toLowerCase().trim();
+    if (!t) return true;
+    return [
+      new Date(p.paid_at).toLocaleDateString("pt-BR"),
+      p.note ?? "",
+      fmtBRL(p.amount),
+      String(p.amount),
+    ].some((v) => String(v).toLowerCase().includes(t));
+  });
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Repasses ao Fornecedor</h2>
@@ -154,6 +173,13 @@ function RepassesPage() {
           </div>
         </div>
 
+        {pending.length > 0 && (
+          <div className="relative max-w-md">
+            <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
+            <Input className="pl-9" placeholder="Buscar em todos os campos..." value={qPend} onChange={(e) => setQPend(e.target.value)} />
+          </div>
+        )}
+
         {pending.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhuma venda pendente. Todas as vendas já foram repassadas.</p>
         ) : (
@@ -172,7 +198,7 @@ function RepassesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {pending.map((p) => (
+                  {filteredPending.map((p) => (
                     <tr key={p.product_id} className="border-t">
                       <td className="p-2">
                         <Checkbox checked={selected.has(p.product_id)} onCheckedChange={() => toggle(p.product_id)} />
@@ -211,7 +237,15 @@ function RepassesPage() {
       </Card>
 
       <Card className="p-0 overflow-hidden">
-        <h3 className="p-4 font-semibold border-b">Histórico de Repasses</h3>
+        <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
+          <h3 className="font-semibold">Histórico de Repasses</h3>
+          {payments.length > 0 && (
+            <div className="relative w-full sm:w-72">
+              <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
+              <Input className="pl-9" placeholder="Buscar em todos os campos..." value={qHist} onChange={(e) => setQHist(e.target.value)} />
+            </div>
+          )}
+        </div>
         {payments.length === 0 ? (
           <p className="p-4 text-sm text-muted-foreground">Nenhum repasse registrado ainda.</p>
         ) : (
@@ -225,7 +259,7 @@ function RepassesPage() {
               </tr>
             </thead>
             <tbody>
-              {payments.map((p) => (
+              {filteredPayments.map((p) => (
                 <tr key={p.id} className="border-t">
                   <td className="p-3">{new Date(p.paid_at).toLocaleDateString("pt-BR")}</td>
                   <td className="p-3">{p.note ?? "—"}</td>
