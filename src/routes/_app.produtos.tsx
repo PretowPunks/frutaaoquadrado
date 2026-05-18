@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 
@@ -58,16 +58,44 @@ function ProdutosPage() {
     toast.success("Removido"); load();
   };
 
+  const exportStock = () => {
+    const items = products.filter((p) => p.stock_quantity > 0);
+    if (items.length === 0) return toast.error("Nenhum item com estoque para exportar");
+    const header = ["Produto", "Estoque", "Valor Entrada", "Valor Saida", "Valor Total Estoque"];
+    const rows = items.map((p) => [
+      `"${p.name.replace(/"/g, '""')}"`,
+      p.stock_quantity,
+      Number(p.cost_price).toFixed(2).replace(".", ","),
+      Number(p.sale_price).toFixed(2).replace(".", ","),
+      (Number(p.cost_price) * p.stock_quantity).toFixed(2).replace(".", ","),
+    ]);
+    const totalQt = items.reduce((a, p) => a + p.stock_quantity, 0);
+    const totalVal = items.reduce((a, p) => a + Number(p.cost_price) * p.stock_quantity, 0);
+    rows.push(["TOTAL", totalQt, "", "", totalVal.toFixed(2).replace(".", ",")]);
+    const csv = "\uFEFF" + [header, ...rows].map((r) => r.join(";")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `estoque-fruta2-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${items.length} itens exportados`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Produtos</h2>
+        <div className="flex gap-2">
+        <Button variant="outline" onClick={exportStock}><Download className="h-4 w-4 mr-2" /> Exportar Estoque</Button>
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Novo Produto</Button>
           </DialogTrigger>
           <ProductDialog initial={editing} onSave={save} />
         </Dialog>
+        </div>
       </div>
       <Card className="p-0 overflow-hidden">
         <table className="w-full text-sm">
