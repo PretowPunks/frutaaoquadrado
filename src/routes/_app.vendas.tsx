@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Search } from "lucide-react";
+import { useSort, SortHeader } from "@/hooks/use-sort";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -109,6 +110,16 @@ function VendasPage() {
     ].some((v) => String(v).toLowerCase().includes(t));
   });
 
+  const { sorted, sortKey, sortDir, toggle } = useSort(filteredSales, {
+    created_at: (s) => new Date(s.created_at).getTime(),
+    product: (s) => s.products?.name ?? "",
+    customer: (s) => s.customers?.name ?? "",
+    quantity: (s) => s.quantity,
+    unit_sale_price: (s) => Number(s.unit_sale_price),
+    total: (s) => Number(s.unit_sale_price) * s.quantity,
+    status: (s) => statusLabel(s),
+  }, { key: "created_at", dir: "desc" });
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Vendas / Saídas</h2>
@@ -188,14 +199,18 @@ function VendasPage() {
         <table className="w-full text-sm">
           <thead className="bg-secondary text-secondary-foreground">
             <tr>
-              <th className="text-left p-3">Data</th><th className="text-left p-3">Produto</th>
-              <th className="text-left p-3">Cliente</th><th className="text-right p-3">Qtd</th>
-              <th className="text-right p-3">Valor Un.</th><th className="text-right p-3">Total</th>
-              <th className="text-center p-3">Status</th><th className="text-center p-3">Ações</th>
+              <th className="text-left p-3"><SortHeader label="Data" sortKey="created_at" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
+              <th className="text-left p-3"><SortHeader label="Produto" sortKey="product" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
+              <th className="text-left p-3"><SortHeader label="Cliente" sortKey="customer" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
+              <th className="text-right p-3"><SortHeader label="Qtd" sortKey="quantity" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
+              <th className="text-right p-3"><SortHeader label="Valor Un." sortKey="unit_sale_price" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
+              <th className="text-right p-3"><SortHeader label="Total" sortKey="total" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
+              <th className="text-center p-3"><SortHeader label="Status" sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
+              <th className="text-center p-3">Ações</th>
             </tr>
           </thead>
           <tbody>
-            {filteredSales.map((s) => (
+            {sorted.map((s) => (
               <tr key={s.id} className="border-t">
                 <td className="p-3">{new Date(s.created_at).toLocaleString("pt-BR")}</td>
                 <td className="p-3">{s.products?.name}</td>
