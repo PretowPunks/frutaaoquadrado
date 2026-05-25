@@ -10,6 +10,7 @@ import { Plus, Trash2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
+import { useSort, SortHeader } from "@/hooks/use-sort";
 
 export const Route = createFileRoute("/_app/clientes")({ component: ClientesPage });
 
@@ -33,6 +34,14 @@ function ClientesPage() {
       .order("created_at", { ascending: false })
       .then(({ data }) => setHistory(data ?? []));
   }, [selected]);
+
+  const histSort = useSort(history, {
+    created_at: (h) => new Date(h.created_at).getTime(),
+    product: (h) => h.products?.name ?? "",
+    quantity: (h) => h.quantity,
+    total: (h) => Number(h.unit_sale_price) * h.quantity,
+    status: (h) => h.status,
+  }, { key: "created_at", dir: "desc" });
 
   const create = async () => {
     if (!name.trim()) return toast.error("Nome obrigatório");
@@ -115,10 +124,16 @@ function ClientesPage() {
                 ) : (
                   <table className="w-full text-sm">
                     <thead className="bg-secondary text-secondary-foreground">
-                      <tr><th className="text-left p-3">Data</th><th className="text-left p-3">Produto</th><th className="text-right p-3">Qtd</th><th className="text-right p-3">Total</th><th className="text-center p-3">Status</th></tr>
+                      <tr>
+                        <th className="text-left p-3"><SortHeader label="Data" sortKey="created_at" currentKey={histSort.sortKey} dir={histSort.sortDir} onToggle={histSort.toggle} /></th>
+                        <th className="text-left p-3"><SortHeader label="Produto" sortKey="product" currentKey={histSort.sortKey} dir={histSort.sortDir} onToggle={histSort.toggle} /></th>
+                        <th className="text-right p-3"><SortHeader label="Qtd" sortKey="quantity" currentKey={histSort.sortKey} dir={histSort.sortDir} onToggle={histSort.toggle} /></th>
+                        <th className="text-right p-3"><SortHeader label="Total" sortKey="total" currentKey={histSort.sortKey} dir={histSort.sortDir} onToggle={histSort.toggle} /></th>
+                        <th className="text-center p-3"><SortHeader label="Status" sortKey="status" currentKey={histSort.sortKey} dir={histSort.sortDir} onToggle={histSort.toggle} /></th>
+                      </tr>
                     </thead>
                     <tbody>
-                      {history.map((h) => (
+                      {histSort.sorted.map((h) => (
                         <tr key={h.id} className="border-t">
                           <td className="p-3">{new Date(h.created_at).toLocaleDateString("pt-BR")}</td>
                           <td className="p-3">{h.products?.name}</td>
