@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { Trash2, FileText, Printer, Search } from "lucide-react";
+import { useSort, SortHeader } from "@/hooks/use-sort";
 
 export const Route = createFileRoute("/_app/repasses")({ component: RepassesPage });
 
@@ -139,6 +140,19 @@ function RepassesPage() {
     ].some((v) => String(v).toLowerCase().includes(t));
   });
 
+  const pendSort = useSort(filteredPending, {
+    product_name: (p) => p.product_name,
+    quantity: (p) => p.quantity,
+    unit_cost: (p) => Number(p.unit_cost),
+    total_cost: (p) => Number(p.total_cost),
+  }, { key: "product_name", dir: "asc" });
+
+  const histSort = useSort(filteredPayments, {
+    paid_at: (p) => new Date(p.paid_at).getTime(),
+    note: (p) => p.note ?? "",
+    amount: (p) => Number(p.amount),
+  }, { key: "paid_at", dir: "desc" });
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Repasses ao Fornecedor</h2>
@@ -191,14 +205,14 @@ function RepassesPage() {
                     <th className="p-2 w-10">
                       <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
                     </th>
-                    <th className="text-left p-2">Produto</th>
-                    <th className="text-right p-2">Qtd</th>
-                    <th className="text-right p-2">Custo unit.</th>
-                    <th className="text-right p-2">Total</th>
+                    <th className="text-left p-2"><SortHeader label="Produto" sortKey="product_name" currentKey={pendSort.sortKey} dir={pendSort.sortDir} onToggle={pendSort.toggle} /></th>
+                    <th className="text-right p-2"><SortHeader label="Qtd" sortKey="quantity" currentKey={pendSort.sortKey} dir={pendSort.sortDir} onToggle={pendSort.toggle} /></th>
+                    <th className="text-right p-2"><SortHeader label="Custo unit." sortKey="unit_cost" currentKey={pendSort.sortKey} dir={pendSort.sortDir} onToggle={pendSort.toggle} /></th>
+                    <th className="text-right p-2"><SortHeader label="Total" sortKey="total_cost" currentKey={pendSort.sortKey} dir={pendSort.sortDir} onToggle={pendSort.toggle} /></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPending.map((p) => (
+                  {pendSort.sorted.map((p) => (
                     <tr key={p.product_id} className="border-t">
                       <td className="p-2">
                         <Checkbox checked={selected.has(p.product_id)} onCheckedChange={() => toggle(p.product_id)} />
@@ -252,14 +266,14 @@ function RepassesPage() {
           <table className="w-full text-sm">
             <thead className="bg-secondary text-secondary-foreground">
               <tr>
-                <th className="text-left p-3">Data</th>
-                <th className="text-left p-3">Observação</th>
-                <th className="text-right p-3">Valor</th>
+                <th className="text-left p-3"><SortHeader label="Data" sortKey="paid_at" currentKey={histSort.sortKey} dir={histSort.sortDir} onToggle={histSort.toggle} /></th>
+                <th className="text-left p-3"><SortHeader label="Observação" sortKey="note" currentKey={histSort.sortKey} dir={histSort.sortDir} onToggle={histSort.toggle} /></th>
+                <th className="text-right p-3"><SortHeader label="Valor" sortKey="amount" currentKey={histSort.sortKey} dir={histSort.sortDir} onToggle={histSort.toggle} /></th>
                 <th className="p-3 text-right">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {filteredPayments.map((p) => (
+              {histSort.sorted.map((p) => (
                 <tr key={p.id} className="border-t">
                   <td className="p-3">{new Date(p.paid_at).toLocaleDateString("pt-BR")}</td>
                   <td className="p-3">{p.note ?? "—"}</td>

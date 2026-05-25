@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Download, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Download, Search, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
+import { useSort, SortHeader } from "@/hooks/use-sort";
 
 export const Route = createFileRoute("/_app/produtos")({ component: ProdutosPage });
 
@@ -26,12 +27,26 @@ function ProdutosPage() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const [salesByProduct, setSalesByProduct] = useState<Record<string, number>>({});
+  const [windowDays, setWindowDays] = useState(30);
+  const [coverDays, setCoverDays] = useState(7);
+  const [openReplenish, setOpenReplenish] = useState(false);
 
   const load = async () => {
     const { data } = await supabase.from("products").select("*").order("name");
     setProducts((data ?? []) as Product[]);
+    const since = new Date(Date.now() - windowDays * 86400000).toISOString();
+    const { data: s } = await supabase
+      .from("sales")
+      .select("product_id, quantity, created_at")
+      .gte("created_at", since);
+    const map: Record<string, number> = {};
+    for (const r of (s ?? []) as any[]) {
+      map[r.product_id] = (map[r.product_id] ?? 0) + Number(r.quantity);
+    }
+    setSalesByProduct(map);
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [windowDays]);
 
   const save = async (form: Omit<Product, "id" | "stock_quantity"> & { id?: string }) => {
     if (form.id) {
@@ -98,11 +113,31 @@ function ProdutosPage() {
     ].some((v) => v.toLowerCase().includes(t));
   });
 
+  const { sorted, sortKey, sortDir, toggle } = useSort(filtered, {
+    name: (p) => p.name,
+    cost_price: (p) => Number(p.cost_price),
+    sale_price: (p) => Number(p.sale_price),
+    stock_quantity: (p) => p.stock_quantity,
+    low_stock_threshold: (p) => p.low_stock_threshold,
+  }, { key: "name", dir: "asc" });
+
+  const replenish = products
+    .map((p) => {
+      const sold = salesByProduct[p.id] ?? 0;
+      const perDay = sold / windowDays;
+      const recommended = Math.ceil(perDay * coverDays);
+      const suggest = Math.max(0, recommended - p.stock_quantity);
+      return { p, sold, perDay, recommended, suggest };
+    })
+    .filter((r) => r.suggest > 0 || r.p.stock_quantity <= r.p.low_stock_threshold)
+    .sort((a, b) => b.suggest - a.suggest);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Produtos</h2>
         <div className="flex gap-2">
+        <Button variant="outline" onClick={() => setOpenReplenish(true)}><Sparkles className="h-4 w-4 mr-2" /> Reposição Inteligente</Button>
         <Button variant="outline" onClick={exportStock}><Download className="h-4 w-4 mr-2" /> Exportar Estoque</Button>
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
@@ -120,16 +155,16 @@ function ProdutosPage() {
         <table className="w-full text-sm">
           <thead className="bg-secondary text-secondary-foreground">
             <tr>
-              <th className="text-left p-3">Produto</th>
-              <th className="text-right p-3">Valor Entrada</th>
-              <th className="text-right p-3">Valor Saída</th>
-              <th className="text-right p-3">Estoque</th>
-              <th className="text-right p-3">Alerta &lt;=</th>
+              <th className="text-left p-3"><SortHeader label="Produto" sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
+              <th className="text-right p-3"><SortHeader label="Valor Entrada" sortKey="cost_price" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
+              <th className="text-right p-3"><SortHeader label="Valor Saída" sortKey="sale_price" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
+              <th className="text-right p-3"><SortHeader label="Estoque" sortKey="stock_quantity" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
+              <th className="text-right p-3"><SortHeader label="Alerta <=" sortKey="low_stock_threshold" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
               <th className="text-right p-3">Ações</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((p) => (
+            {sorted.map((p) => (
               <tr key={p.id} className="border-t hover:bg-muted/30">
                 <td className="p-3 font-medium">{p.name}</td>
                 <td className="p-3 text-right">{fmtBRL(p.cost_price)}</td>
@@ -145,6 +180,56 @@ function ProdutosPage() {
           </tbody>
         </table>
       </Card>
+
+      <Dialog open={openReplenish} onOpenChange={setOpenReplenish}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5" /> Proposta de Reposição</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Período analisado (dias)</Label>
+              <Input type="number" min={1} value={windowDays} onChange={(e) => setWindowDays(Math.max(1, Number(e.target.value)))} />
+            </div>
+            <div>
+              <Label>Cobertura desejada (dias)</Label>
+              <Input type="number" min={1} value={coverDays} onChange={(e) => setCoverDays(Math.max(1, Number(e.target.value)))} />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Calculado a partir das vendas dos últimos {windowDays} dias. A sugestão cobre {coverDays} dias de venda média.
+          </p>
+          <div className="max-h-[50vh] overflow-auto rounded border">
+            <table className="w-full text-sm">
+              <thead className="bg-secondary text-secondary-foreground sticky top-0">
+                <tr>
+                  <th className="text-left p-2">Produto</th>
+                  <th className="text-right p-2">Vendido ({windowDays}d)</th>
+                  <th className="text-right p-2">Média/dia</th>
+                  <th className="text-right p-2">Estoque atual</th>
+                  <th className="text-right p-2">Sugestão de compra</th>
+                </tr>
+              </thead>
+              <tbody>
+                {replenish.length === 0 ? (
+                  <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">Nenhuma reposição necessária no momento.</td></tr>
+                ) : replenish.map(({ p, sold, perDay, suggest }) => (
+                  <tr key={p.id} className="border-t">
+                    <td className="p-2 font-medium">{p.name}</td>
+                    <td className="p-2 text-right">{sold}</td>
+                    <td className="p-2 text-right">{perDay.toFixed(2)}</td>
+                    <td className={"p-2 text-right " + (p.stock_quantity <= p.low_stock_threshold ? "text-destructive font-semibold" : "")}>{p.stock_quantity}</td>
+                    <td className="p-2 text-right font-bold text-primary">{suggest > 0 ? `+${suggest}` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenReplenish(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
