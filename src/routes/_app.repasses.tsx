@@ -28,6 +28,7 @@ function RepassesPage() {
   const [openReceipt, setOpenReceipt] = useState<null | { payment: any; items: any[] }>(null);
   const [qPend, setQPend] = useState("");
   const [qHist, setQHist] = useState("");
+  const [periodMonth, setPeriodMonth] = useState<string>("");
 
   const load = async () => {
     const [paysRes, salesRes] = await Promise.all([
@@ -129,7 +130,15 @@ function RepassesPage() {
     return [p.product_name, String(p.quantity), fmtBRL(p.unit_cost), fmtBRL(p.total_cost)]
       .some((v) => v.toLowerCase().includes(t));
   });
-  const filteredPayments = payments.filter((p) => {
+  const inPeriod = (p: any) => {
+    if (!periodMonth) return true;
+    const d = new Date(p.paid_at);
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return ym === periodMonth;
+  };
+  const periodPayments = payments.filter(inPeriod);
+  const periodTotal = periodPayments.reduce((a, p) => a + Number(p.amount), 0);
+  const filteredPayments = periodPayments.filter((p) => {
     const t = qHist.toLowerCase().trim();
     if (!t) return true;
     return [
@@ -253,13 +262,25 @@ function RepassesPage() {
       <Card className="p-0 overflow-hidden">
         <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
           <h3 className="font-semibold">Histórico de Repasses</h3>
-          {payments.length > 0 && (
-            <div className="relative w-full sm:w-72">
-              <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
-              <Input className="pl-9" placeholder="Buscar em todos os campos..." value={qHist} onChange={(e) => setQHist(e.target.value)} />
-            </div>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Input type="month" value={periodMonth} onChange={(e) => setPeriodMonth(e.target.value)} className="w-40" />
+            {periodMonth && (
+              <Button size="sm" variant="ghost" onClick={() => setPeriodMonth("")}>Limpar</Button>
+            )}
+            {payments.length > 0 && (
+              <div className="relative w-full sm:w-72">
+                <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
+                <Input className="pl-9" placeholder="Buscar em todos os campos..." value={qHist} onChange={(e) => setQHist(e.target.value)} />
+              </div>
+            )}
+          </div>
         </div>
+        {periodMonth && (
+          <div className="px-4 py-2 bg-muted/40 border-b text-sm flex justify-between">
+            <span className="text-muted-foreground">Total repassado no período</span>
+            <span className="font-bold text-primary">{fmtBRL(periodTotal)}</span>
+          </div>
+        )}
         {payments.length === 0 ? (
           <p className="p-4 text-sm text-muted-foreground">Nenhum repasse registrado ainda.</p>
         ) : (
