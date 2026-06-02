@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Search } from "lucide-react";
+import { Trash2, Search, Plus, X } from "lucide-react";
 import { useSort, SortHeader } from "@/hooks/use-sort";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -21,53 +21,75 @@ import {
 
 export const Route = createFileRoute("/_app/vendas")({ component: VendasPage });
 
+type CartItem = { product_id: string; quantity: number; unit_sale_price: number };
+
 function VendasPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [sales, setSales] = useState<any[]>([]);
-  const [productId, setProductId] = useState("");
   const [customerId, setCustomerId] = useState("");
-  const [qty, setQty] = useState(1);
-  const [unitSale, setUnitSale] = useState(0);
   const [status, setStatus] = useState<"paid" | "unpaid" | "scheduled">("paid");
   const [deliveryDate, setDeliveryDate] = useState<string>("");
+  const [cart, setCart] = useState<CartItem[]>([{ product_id: "", quantity: 1, unit_sale_price: 0 }]);
   const [q, setQ] = useState("");
+  const [periodMonth, setPeriodMonth] = useState<string>(""); // formato YYYY-MM
+  const [filterProductId, setFilterProductId] = useState<string>("all");
 
   const load = async () => {
     const [{ data: p }, { data: c }, { data: s }] = await Promise.all([
       supabase.from("products").select("*").order("name"),
       supabase.from("customers").select("*").order("name"),
-      supabase.from("sales").select("*, products(name), customers(name)").order("created_at", { ascending: false }).limit(100),
+      supabase.from("sales").select("*, products(name), customers(name)").order("created_at", { ascending: false }).limit(500),
     ]);
     setProducts(p ?? []); setCustomers(c ?? []); setSales(s ?? []);
   };
   useEffect(() => { load(); }, []);
 
-  useEffect(() => {
-    const p = products.find((x) => x.id === productId);
-    if (p) setUnitSale(Number(p.sale_price));
-  }, [productId, products]);
+  const updateItem = (idx: number, patch: Partial<CartItem>) => {
+    setCart((c) => c.map((it, i) => {
+      if (i !== idx) return it;
+      const next = { ...it, ...patch };
+      if (patch.product_id) {
+        const p = products.find((x) => x.id === patch.product_id);
+        if (p) next.unit_sale_price = Number(p.sale_price);
+      }
+      return next;
+    }));
+  };
+  const addRow = () => setCart((c) => [...c, { product_id: "", quantity: 1, unit_sale_price: 0 }]);
+  const removeRow = (idx: number) => setCart((c) => c.length === 1 ? c : c.filter((_, i) => i !== idx));
+  const cartTotal = cart.reduce((a, it) => a + Number(it.unit_sale_price) * Number(it.quantity), 0);
 
   const submit = async () => {
-    const p = products.find((x) => x.id === productId);
-    if (!p) return toast.error("Selecione um produto");
-    if (qty < 1) return toast.error("Quantidade inválida");
-    if (qty > p.stock_quantity) return toast.error("Estoque insuficiente");
     if (status === "scheduled" && !deliveryDate) return toast.error("Informe a data de entrega");
+    if (cart.length === 0) return toast.error("Adicione ao menos um produto");
+    const rows: any[] = [];
+    for (const [i, it] of cart.entries()) {
+      const p = products.find((x) => x.id === it.product_id);
+      if (!p) return toast.error(`Linha ${i + 1}: selecione um produto`);
+      if (it.quantity < 1) return toast.error(`Linha ${i + 1}: quantidade inválida`);
+      if (it.quantity > p.stock_quantity) return toast.error(`${p.name}: estoque insuficiente (${p.stock_quantity})`);
+      rows.push({
+        product_id: p.id,
+        quantity: it.quantity,
+        unit_sale_price: it.unit_sale_price,
+        unit_cost: Number(p.cost_price),
+      });
+    }
     const { data: u } = await supabase.auth.getUser();
-    const { error } = await supabase.from("sales").insert({
-      product_id: productId,
+    const payload = rows.map((r) => ({
+      ...r,
       customer_id: customerId || null,
-      quantity: qty,
-      unit_sale_price: unitSale,
-      unit_cost: Number(p.cost_price),
       status,
       delivery_date: status === "scheduled" ? deliveryDate : null,
       created_by: u.user?.id,
-    } as any);
+    }));
+    const { error } = await supabase.from("sales").insert(payload as any);
     if (error) return toast.error(error.message);
-    toast.success("Venda registrada");
-    setQty(1); setDeliveryDate(""); load();
+    toast.success(`${rows.length} item(ns) registrado(s)`);
+    setCart([{ product_id: "", quantity: 1, unit_sale_price: 0 }]);
+    setDeliveryDate("");
+    load();
   };
 
   const setSaleStatus = async (s: any, next: "paid" | "unpaid" | "scheduled") => {
@@ -96,7 +118,19 @@ function VendasPage() {
     s.status === "unpaid" ? "A Pagar" :
     `Agendada ${s.delivery_date ? new Date(s.delivery_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`;
 
-  const filteredSales = sales.filter((s) => {
+  const inPeriod = (s: any) => {
+    if (!periodMonth) return true;
+    const d = new Date(s.created_at);
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return ym === periodMonth;
+  };
+  const matchesProductFilter = (s: any) => filterProductId === "all" || s.product_id === filterProductId;
+
+  const periodSales = sales.filter((s) => inPeriod(s) && matchesProductFilter(s));
+  const periodItems = periodSales.reduce((a, s) => a + Number(s.quantity), 0);
+  const periodValue = periodSales.reduce((a, s) => a + Number(s.unit_sale_price) * Number(s.quantity), 0);
+
+  const filteredSales = periodSales.filter((s) => {
     const t = q.toLowerCase().trim();
     if (!t) return true;
     return [
@@ -125,16 +159,7 @@ function VendasPage() {
       <h2 className="text-2xl font-bold">Vendas / Saídas</h2>
       <Card className="p-5 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div>
-            <Label>Produto</Label>
-            <Select value={productId} onValueChange={setProductId}>
-              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-              <SelectContent>
-                {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name} (estq: {p.stock_quantity})</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
+          <div className="md:col-span-1">
             <Label>Cliente</Label>
             <Select value={customerId} onValueChange={setCustomerId}>
               <SelectTrigger><SelectValue placeholder="Sem cliente" /></SelectTrigger>
@@ -142,12 +167,6 @@ function VendasPage() {
                 {customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
-          </div>
-          <div><Label>Quantidade</Label><Input type="number" min={1} value={qty} onChange={(e) => setQty(Number(e.target.value))} /></div>
-          <div>
-            <Label>Valor de Saída (un.)</Label>
-            <Input type="number" step="0.01" value={unitSale} onChange={(e) => setUnitSale(Number(e.target.value))} />
-            <p className="text-xs text-muted-foreground mt-1">Preenchido automaticamente — edite para descontos.</p>
           </div>
           <div>
             <Label>Status</Label>
@@ -166,7 +185,56 @@ function VendasPage() {
               <Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} />
             </div>
           )}
-          <div className="flex items-end"><Button onClick={submit} className="w-full">Registrar Venda</Button></div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>Produtos da venda</Label>
+            <Button type="button" size="sm" variant="outline" onClick={addRow}>
+              <Plus className="h-4 w-4 mr-1" /> Adicionar produto
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {cart.map((it, idx) => {
+              const p = products.find((x) => x.id === it.product_id);
+              return (
+                <div key={idx} className="grid grid-cols-12 gap-2 items-end border rounded p-2">
+                  <div className="col-span-12 md:col-span-6">
+                    <Label className="text-xs">Produto</Label>
+                    <Select value={it.product_id} onValueChange={(v) => updateItem(idx, { product_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                      <SelectContent>
+                        {products.map((pp) => <SelectItem key={pp.id} value={pp.id}>{pp.name} (estq: {pp.stock_quantity})</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-4 md:col-span-2">
+                    <Label className="text-xs">Qtd</Label>
+                    <Input type="number" min={1} value={it.quantity} onChange={(e) => updateItem(idx, { quantity: Number(e.target.value) })} />
+                  </div>
+                  <div className="col-span-6 md:col-span-3">
+                    <Label className="text-xs">Valor un.</Label>
+                    <Input type="number" step="0.01" value={it.unit_sale_price} onChange={(e) => updateItem(idx, { unit_sale_price: Number(e.target.value) })} />
+                  </div>
+                  <div className="col-span-2 md:col-span-1 flex justify-end">
+                    <Button type="button" size="icon" variant="ghost" onClick={() => removeRow(idx)} disabled={cart.length === 1}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {p && (
+                    <div className="col-span-12 text-xs text-muted-foreground">
+                      Subtotal: <span className="font-semibold text-foreground">{fmtBRL(Number(it.unit_sale_price) * Number(it.quantity))}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex items-center justify-between pt-2 border-t">
+            <span className="text-sm text-muted-foreground">Total da venda</span>
+            <span className="text-lg font-bold">{fmtBRL(cartTotal)}</span>
+          </div>
+          <Button onClick={submit} className="w-full">Registrar Venda</Button>
         </div>
         <p className="text-xs text-muted-foreground">
           Vendas agendadas dão baixa no estoque imediatamente. Clique na etiqueta para concluir como Pago / A Pagar, ou exclua para devolver ao estoque.
@@ -188,9 +256,44 @@ function VendasPage() {
         </Card>
       </div>
 
+      <Card className="p-5 space-y-3">
+        <h3 className="font-semibold">Consulta de itens vendidos</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <Label>Mês</Label>
+            <Input type="month" value={periodMonth} onChange={(e) => setPeriodMonth(e.target.value)} />
+          </div>
+          <div>
+            <Label>Produto</Label>
+            <Select value={filterProductId} onValueChange={setFilterProductId}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os produtos</SelectItem>
+                {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-end">
+            <Button variant="outline" className="w-full" onClick={() => { setPeriodMonth(""); setFilterProductId("all"); }}>
+              Limpar filtros
+            </Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 pt-2">
+          <div className="rounded border p-3">
+            <p className="text-xs text-muted-foreground">Itens vendidos no período</p>
+            <p className="text-2xl font-bold">{periodItems}</p>
+          </div>
+          <div className="rounded border p-3">
+            <p className="text-xs text-muted-foreground">Valor total no período</p>
+            <p className="text-2xl font-bold text-primary">{fmtBRL(periodValue)}</p>
+          </div>
+        </div>
+      </Card>
+
       <Card className="p-0 overflow-hidden">
         <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
-          <h3 className="font-semibold">Histórico de Vendas</h3>
+          <h3 className="font-semibold">Histórico de Vendas {periodMonth && <span className="text-xs text-muted-foreground">(filtrado)</span>}</h3>
           <div className="relative w-full sm:w-72">
             <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
             <Input className="pl-9" placeholder="Buscar em todos os campos..." value={q} onChange={(e) => setQ(e.target.value)} />
