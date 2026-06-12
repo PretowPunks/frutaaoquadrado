@@ -280,7 +280,7 @@ function VendasPage() {
             </Button>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
           <div className="rounded border p-3">
             <p className="text-xs text-muted-foreground">Itens vendidos no período</p>
             <p className="text-2xl font-bold">{periodItems}</p>
@@ -288,6 +288,10 @@ function VendasPage() {
           <div className="rounded border p-3">
             <p className="text-xs text-muted-foreground">Valor total no período</p>
             <p className="text-2xl font-bold text-primary">{fmtBRL(periodValue)}</p>
+          </div>
+          <div className="rounded border p-3">
+            <p className="text-xs text-muted-foreground">Lucro bruto no período</p>
+            <p className="text-2xl font-bold text-emerald-600">{fmtBRL(periodProfit)}</p>
           </div>
         </div>
       </Card>
