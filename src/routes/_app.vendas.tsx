@@ -129,6 +129,7 @@ function VendasPage() {
   const periodSales = sales.filter((s) => inPeriod(s) && matchesProductFilter(s));
   const periodItems = periodSales.reduce((a, s) => a + Number(s.quantity), 0);
   const periodValue = periodSales.reduce((a, s) => a + Number(s.unit_sale_price) * Number(s.quantity), 0);
+  const periodProfit = periodSales.reduce((a, s) => a + (Number(s.unit_sale_price) - Number(s.unit_cost)) * Number(s.quantity), 0);
 
   const filteredSales = periodSales.filter((s) => {
     const t = q.toLowerCase().trim();
