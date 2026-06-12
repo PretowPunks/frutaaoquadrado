@@ -129,6 +129,7 @@ function VendasPage() {
   const periodSales = sales.filter((s) => inPeriod(s) && matchesProductFilter(s));
   const periodItems = periodSales.reduce((a, s) => a + Number(s.quantity), 0);
   const periodValue = periodSales.reduce((a, s) => a + Number(s.unit_sale_price) * Number(s.quantity), 0);
+  const periodProfit = periodSales.reduce((a, s) => a + (Number(s.unit_sale_price) - Number(s.unit_cost)) * Number(s.quantity), 0);
 
   const filteredSales = periodSales.filter((s) => {
     const t = q.toLowerCase().trim();
@@ -279,7 +280,7 @@ function VendasPage() {
             </Button>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
           <div className="rounded border p-3">
             <p className="text-xs text-muted-foreground">Itens vendidos no período</p>
             <p className="text-2xl font-bold">{periodItems}</p>
@@ -287,6 +288,10 @@ function VendasPage() {
           <div className="rounded border p-3">
             <p className="text-xs text-muted-foreground">Valor total no período</p>
             <p className="text-2xl font-bold text-primary">{fmtBRL(periodValue)}</p>
+          </div>
+          <div className="rounded border p-3">
+            <p className="text-xs text-muted-foreground">Lucro bruto no período</p>
+            <p className="text-2xl font-bold text-emerald-600">{fmtBRL(periodProfit)}</p>
           </div>
         </div>
       </Card>
