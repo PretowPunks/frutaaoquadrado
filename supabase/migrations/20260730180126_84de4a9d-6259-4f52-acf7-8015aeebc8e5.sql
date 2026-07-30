@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "auth read profiles" ON public.profiles;
