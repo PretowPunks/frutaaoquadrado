@@ -16,13 +16,15 @@ import { useSort, SortHeader } from "@/hooks/use-sort";
 export const Route = createFileRoute("/_app/repasses")({ component: RepassesPage });
 
 type PendingItem = { product_id: string; product_name: string; quantity: number; unit_cost: number; total_cost: number };
+type SaleRemain = { id: string; remaining: number };
 
 function RepassesPage() {
   const [payments, setPayments] = useState<any[]>([]);
   const [supplierTotal, setSupplierTotal] = useState(0);
   const [pending, setPending] = useState<PendingItem[]>([]);
-  const [saleIdsByProduct, setSaleIdsByProduct] = useState<Record<string, string[]>>({});
+  const [salesByProduct, setSalesByProduct] = useState<Record<string, SaleRemain[]>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [qtyByProduct, setQtyByProduct] = useState<Record<string, number>>({});
   const [note, setNote] = useState("");
   const [paidAt, setPaidAt] = useState<string>(new Date().toISOString().slice(0, 10));
   const [openReceipt, setOpenReceipt] = useState<null | { payment: any; items: any[] }>(null);
@@ -33,33 +35,40 @@ function RepassesPage() {
   const load = async () => {
     const [paysRes, salesRes] = await Promise.all([
       (supabase as any).from("supplier_payments").select("*").order("paid_at", { ascending: false }),
-      supabase.from("sales").select("id, product_id, quantity, unit_cost, supplier_payment_id, status, products(name)"),
+      supabase.from("sales").select("id, product_id, quantity, repassed_quantity, unit_cost, supplier_payment_id, status, products(name)"),
     ]);
     setPayments(paysRes.data ?? []);
     const sales = (salesRes.data ?? []) as any[];
     setSupplierTotal(sales.reduce((a, s) => a + Number(s.unit_cost) * s.quantity, 0));
 
     // Agrupa vendas pendentes (sem repasse) por produto
-    const pend = sales.filter((s: any) => !s.supplier_payment_id && s.status !== "scheduled");
+    const pend = sales.filter(
+      (s: any) => s.status !== "scheduled" && s.quantity - (s.repassed_quantity ?? 0) > 0,
+    );
     const grouped = new Map<string, PendingItem>();
-    const idsMap: Record<string, string[]> = {};
+    const idsMap: Record<string, SaleRemain[]> = {};
     for (const s of pend) {
       const key = s.product_id;
       const name = s.products?.name ?? "—";
+      const remaining = s.quantity - (s.repassed_quantity ?? 0);
       const cur = grouped.get(key) ?? { product_id: key, product_name: name, quantity: 0, unit_cost: Number(s.unit_cost), total_cost: 0 };
-      cur.quantity += s.quantity;
-      cur.total_cost += Number(s.unit_cost) * s.quantity;
+      cur.quantity += remaining;
+      cur.total_cost += Number(s.unit_cost) * remaining;
       grouped.set(key, cur);
-      (idsMap[key] ||= []).push(s.id);
+      (idsMap[key] ||= []).push({ id: s.id, remaining });
     }
     const list = Array.from(grouped.values()).sort((a, b) => a.product_name.localeCompare(b.product_name));
     setPending(list);
-    setSaleIdsByProduct(idsMap);
+    setSalesByProduct(idsMap);
     setSelected(new Set(list.map((p) => p.product_id))); // por padrão tudo selecionado
+    setQtyByProduct(Object.fromEntries(list.map((p) => [p.product_id, p.quantity])));
   };
   useEffect(() => { load(); }, []);
 
-  const selectedItems = pending.filter((p) => selected.has(p.product_id));
+  const qtyOf = (p: PendingItem) => Math.min(Math.max(qtyByProduct[p.product_id] ?? p.quantity, 0), p.quantity);
+  const selectedItems = pending
+    .filter((p) => selected.has(p.product_id) && qtyOf(p) > 0)
+    .map((p) => ({ ...p, quantity: qtyOf(p), total_cost: qtyOf(p) * Number(p.unit_cost) }));
   const selectedTotal = selectedItems.reduce((a, p) => a + p.total_cost, 0);
   const allSelected = pending.length > 0 && selected.size === pending.length;
   const toggle = (id: string) => {
