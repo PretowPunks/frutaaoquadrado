@@ -1,0 +1,2 @@
+ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS repassed_quantity integer NOT NULL DEFAULT 0;
+UPDATE public.sales SET repassed_quantity = quantity WHERE supplier_payment_id IS NOT NULL AND repassed_quantity = 0;

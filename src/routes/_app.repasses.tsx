@@ -16,13 +16,15 @@ import { useSort, SortHeader } from "@/hooks/use-sort";
 export const Route = createFileRoute("/_app/repasses")({ component: RepassesPage });
 
 type PendingItem = { product_id: string; product_name: string; quantity: number; unit_cost: number; total_cost: number };
+type SaleRemain = { id: string; remaining: number };
 
 function RepassesPage() {
   const [payments, setPayments] = useState<any[]>([]);
   const [supplierTotal, setSupplierTotal] = useState(0);
   const [pending, setPending] = useState<PendingItem[]>([]);
-  const [saleIdsByProduct, setSaleIdsByProduct] = useState<Record<string, string[]>>({});
+  const [salesByProduct, setSalesByProduct] = useState<Record<string, SaleRemain[]>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [qtyByProduct, setQtyByProduct] = useState<Record<string, number>>({});
   const [note, setNote] = useState("");
   const [paidAt, setPaidAt] = useState<string>(new Date().toISOString().slice(0, 10));
   const [openReceipt, setOpenReceipt] = useState<null | { payment: any; items: any[] }>(null);
@@ -33,33 +35,40 @@ function RepassesPage() {
   const load = async () => {
     const [paysRes, salesRes] = await Promise.all([
       (supabase as any).from("supplier_payments").select("*").order("paid_at", { ascending: false }),
-      supabase.from("sales").select("id, product_id, quantity, unit_cost, supplier_payment_id, status, products(name)"),
+      supabase.from("sales").select("id, product_id, quantity, repassed_quantity, unit_cost, supplier_payment_id, status, products(name)"),
     ]);
     setPayments(paysRes.data ?? []);
     const sales = (salesRes.data ?? []) as any[];
     setSupplierTotal(sales.reduce((a, s) => a + Number(s.unit_cost) * s.quantity, 0));
 
     // Agrupa vendas pendentes (sem repasse) por produto
-    const pend = sales.filter((s: any) => !s.supplier_payment_id && s.status !== "scheduled");
+    const pend = sales.filter(
+      (s: any) => s.status !== "scheduled" && s.quantity - (s.repassed_quantity ?? 0) > 0,
+    );
     const grouped = new Map<string, PendingItem>();
-    const idsMap: Record<string, string[]> = {};
+    const idsMap: Record<string, SaleRemain[]> = {};
     for (const s of pend) {
       const key = s.product_id;
       const name = s.products?.name ?? "—";
+      const remaining = s.quantity - (s.repassed_quantity ?? 0);
       const cur = grouped.get(key) ?? { product_id: key, product_name: name, quantity: 0, unit_cost: Number(s.unit_cost), total_cost: 0 };
-      cur.quantity += s.quantity;
-      cur.total_cost += Number(s.unit_cost) * s.quantity;
+      cur.quantity += remaining;
+      cur.total_cost += Number(s.unit_cost) * remaining;
       grouped.set(key, cur);
-      (idsMap[key] ||= []).push(s.id);
+      (idsMap[key] ||= []).push({ id: s.id, remaining });
     }
     const list = Array.from(grouped.values()).sort((a, b) => a.product_name.localeCompare(b.product_name));
     setPending(list);
-    setSaleIdsByProduct(idsMap);
+    setSalesByProduct(idsMap);
     setSelected(new Set(list.map((p) => p.product_id))); // por padrão tudo selecionado
+    setQtyByProduct(Object.fromEntries(list.map((p) => [p.product_id, p.quantity])));
   };
   useEffect(() => { load(); }, []);
 
-  const selectedItems = pending.filter((p) => selected.has(p.product_id));
+  const qtyOf = (p: PendingItem) => Math.min(Math.max(qtyByProduct[p.product_id] ?? p.quantity, 0), p.quantity);
+  const selectedItems = pending
+    .filter((p) => selected.has(p.product_id) && qtyOf(p) > 0)
+    .map((p) => ({ ...p, quantity: qtyOf(p), total_cost: qtyOf(p) * Number(p.unit_cost) }));
   const selectedTotal = selectedItems.reduce((a, p) => a + p.total_cost, 0);
   const allSelected = pending.length > 0 && selected.size === pending.length;
   const toggle = (id: string) => {
@@ -94,10 +103,25 @@ function RepassesPage() {
     const { error: e2 } = await (supabase as any).from("supplier_payment_items").insert(items);
     if (e2) return toast.error(e2.message);
 
-    // 3. vincula vendas selecionadas ao repasse
-    const saleIds = selectedItems.flatMap((p) => saleIdsByProduct[p.product_id] ?? []);
-    const { error: e3 } = await (supabase as any).from("sales").update({ supplier_payment_id: pay.id }).in("id", saleIds);
-    if (e3) return toast.error(e3.message);
+    // 3. aloca as quantidades repassadas nas vendas (permite repasse parcial)
+    for (const p of selectedItems) {
+      let left = p.quantity;
+      for (const s of salesByProduct[p.product_id] ?? []) {
+        if (left <= 0) break;
+        const take = Math.min(left, s.remaining);
+        const full = take === s.remaining;
+        const { data: row } = await (supabase as any).from("sales").select("repassed_quantity").eq("id", s.id).single();
+        const { error: e3 } = await (supabase as any)
+          .from("sales")
+          .update({
+            repassed_quantity: Number(row?.repassed_quantity ?? 0) + take,
+            ...(full ? { supplier_payment_id: pay.id } : {}),
+          })
+          .eq("id", s.id);
+        if (e3) return toast.error(e3.message);
+        left -= take;
+      }
+    }
 
     toast.success("Repasse registrado");
     setNote("");
@@ -116,6 +140,7 @@ function RepassesPage() {
 
   const remove = async (id: string) => {
     if (!confirm("Excluir este repasse? As vendas vinculadas voltarão para 'pendentes'.")) return;
+    await (supabase as any).from("sales").update({ repassed_quantity: 0 }).eq("supplier_payment_id", id);
     const { error } = await (supabase as any).from("supplier_payments").delete().eq("id", id);
     if (error) return toast.error(error.message);
     load();
@@ -215,7 +240,8 @@ function RepassesPage() {
                       <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
                     </th>
                     <th className="text-left p-2"><SortHeader label="Produto" sortKey="product_name" currentKey={pendSort.sortKey} dir={pendSort.sortDir} onToggle={pendSort.toggle} /></th>
-                    <th className="text-right p-2"><SortHeader label="Qtd" sortKey="quantity" currentKey={pendSort.sortKey} dir={pendSort.sortDir} onToggle={pendSort.toggle} /></th>
+                    <th className="text-right p-2"><SortHeader label="Qtd vendida" sortKey="quantity" currentKey={pendSort.sortKey} dir={pendSort.sortDir} onToggle={pendSort.toggle} /></th>
+                    <th className="text-right p-2">Qtd a repassar</th>
                     <th className="text-right p-2"><SortHeader label="Custo unit." sortKey="unit_cost" currentKey={pendSort.sortKey} dir={pendSort.sortDir} onToggle={pendSort.toggle} /></th>
                     <th className="text-right p-2"><SortHeader label="Total" sortKey="total_cost" currentKey={pendSort.sortKey} dir={pendSort.sortDir} onToggle={pendSort.toggle} /></th>
                   </tr>
@@ -228,14 +254,28 @@ function RepassesPage() {
                       </td>
                       <td className="p-2">{p.product_name}</td>
                       <td className="p-2 text-right">{p.quantity}</td>
+                      <td className="p-2 text-right">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={p.quantity}
+                          className="h-8 w-24 ml-auto text-right"
+                          disabled={!selected.has(p.product_id)}
+                          value={qtyByProduct[p.product_id] ?? p.quantity}
+                          onChange={(e) => {
+                            const v = Math.min(Math.max(Number(e.target.value) || 0, 0), p.quantity);
+                            setQtyByProduct({ ...qtyByProduct, [p.product_id]: v });
+                          }}
+                        />
+                      </td>
                       <td className="p-2 text-right">{fmtBRL(p.unit_cost)}</td>
-                      <td className="p-2 text-right font-semibold">{fmtBRL(p.total_cost)}</td>
+                      <td className="p-2 text-right font-semibold">{fmtBRL(qtyOf(p) * Number(p.unit_cost))}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot className="bg-muted/50">
                   <tr>
-                    <td className="p-2 font-bold" colSpan={4}>Total selecionado</td>
+                    <td className="p-2 font-bold" colSpan={5}>Total selecionado</td>
                     <td className="p-2 text-right font-bold">{fmtBRL(selectedTotal)}</td>
                   </tr>
                 </tfoot>
