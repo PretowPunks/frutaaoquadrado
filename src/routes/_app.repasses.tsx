@@ -140,6 +140,7 @@ function RepassesPage() {
 
   const remove = async (id: string) => {
     if (!confirm("Excluir este repasse? As vendas vinculadas voltarão para 'pendentes'.")) return;
+    await (supabase as any).from("sales").update({ repassed_quantity: 0 }).eq("supplier_payment_id", id);
     const { error } = await (supabase as any).from("supplier_payments").delete().eq("id", id);
     if (error) return toast.error(error.message);
     load();
