@@ -239,7 +239,8 @@ function RepassesPage() {
                       <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
                     </th>
                     <th className="text-left p-2"><SortHeader label="Produto" sortKey="product_name" currentKey={pendSort.sortKey} dir={pendSort.sortDir} onToggle={pendSort.toggle} /></th>
-                    <th className="text-right p-2"><SortHeader label="Qtd" sortKey="quantity" currentKey={pendSort.sortKey} dir={pendSort.sortDir} onToggle={pendSort.toggle} /></th>
+                    <th className="text-right p-2"><SortHeader label="Qtd vendida" sortKey="quantity" currentKey={pendSort.sortKey} dir={pendSort.sortDir} onToggle={pendSort.toggle} /></th>
+                    <th className="text-right p-2">Qtd a repassar</th>
                     <th className="text-right p-2"><SortHeader label="Custo unit." sortKey="unit_cost" currentKey={pendSort.sortKey} dir={pendSort.sortDir} onToggle={pendSort.toggle} /></th>
                     <th className="text-right p-2"><SortHeader label="Total" sortKey="total_cost" currentKey={pendSort.sortKey} dir={pendSort.sortDir} onToggle={pendSort.toggle} /></th>
                   </tr>
@@ -252,14 +253,28 @@ function RepassesPage() {
                       </td>
                       <td className="p-2">{p.product_name}</td>
                       <td className="p-2 text-right">{p.quantity}</td>
+                      <td className="p-2 text-right">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={p.quantity}
+                          className="h-8 w-24 ml-auto text-right"
+                          disabled={!selected.has(p.product_id)}
+                          value={qtyByProduct[p.product_id] ?? p.quantity}
+                          onChange={(e) => {
+                            const v = Math.min(Math.max(Number(e.target.value) || 0, 0), p.quantity);
+                            setQtyByProduct({ ...qtyByProduct, [p.product_id]: v });
+                          }}
+                        />
+                      </td>
                       <td className="p-2 text-right">{fmtBRL(p.unit_cost)}</td>
-                      <td className="p-2 text-right font-semibold">{fmtBRL(p.total_cost)}</td>
+                      <td className="p-2 text-right font-semibold">{fmtBRL(qtyOf(p) * Number(p.unit_cost))}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot className="bg-muted/50">
                   <tr>
-                    <td className="p-2 font-bold" colSpan={4}>Total selecionado</td>
+                    <td className="p-2 font-bold" colSpan={5}>Total selecionado</td>
                     <td className="p-2 text-right font-bold">{fmtBRL(selectedTotal)}</td>
                   </tr>
                 </tfoot>
