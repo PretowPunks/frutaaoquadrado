@@ -103,10 +103,25 @@ function RepassesPage() {
     const { error: e2 } = await (supabase as any).from("supplier_payment_items").insert(items);
     if (e2) return toast.error(e2.message);
 
-    // 3. vincula vendas selecionadas ao repasse
-    const saleIds = selectedItems.flatMap((p) => saleIdsByProduct[p.product_id] ?? []);
-    const { error: e3 } = await (supabase as any).from("sales").update({ supplier_payment_id: pay.id }).in("id", saleIds);
-    if (e3) return toast.error(e3.message);
+    // 3. aloca as quantidades repassadas nas vendas (permite repasse parcial)
+    for (const p of selectedItems) {
+      let left = p.quantity;
+      for (const s of salesByProduct[p.product_id] ?? []) {
+        if (left <= 0) break;
+        const take = Math.min(left, s.remaining);
+        const full = take === s.remaining;
+        const { data: row } = await (supabase as any).from("sales").select("repassed_quantity").eq("id", s.id).single();
+        const { error: e3 } = await (supabase as any)
+          .from("sales")
+          .update({
+            repassed_quantity: Number(row?.repassed_quantity ?? 0) + take,
+            ...(full ? { supplier_payment_id: pay.id } : {}),
+          })
+          .eq("id", s.id);
+        if (e3) return toast.error(e3.message);
+        left -= take;
+      }
+    }
 
     toast.success("Repasse registrado");
     setNote("");
