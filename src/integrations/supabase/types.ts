@@ -122,6 +122,7 @@ export type Database = {
           id: string
           product_id: string
           quantity: number
+          repassed_quantity: number
           status: Database["public"]["Enums"]["sale_status"]
           supplier_payment_id: string | null
           unit_cost: number
@@ -135,6 +136,7 @@ export type Database = {
           id?: string
           product_id: string
           quantity: number
+          repassed_quantity?: number
           status?: Database["public"]["Enums"]["sale_status"]
           supplier_payment_id?: string | null
           unit_cost: number
@@ -148,6 +150,7 @@ export type Database = {
           id?: string
           product_id?: string
           quantity?: number
+          repassed_quantity?: number
           status?: Database["public"]["Enums"]["sale_status"]
           supplier_payment_id?: string | null
           unit_cost?: number
