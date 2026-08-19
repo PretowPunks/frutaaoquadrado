@@ -196,7 +196,7 @@ function VendasPage() {
           </div>
           <div>
             <Label>Status</Label>
-            <Select value={status} onValueChange={(v: any) => setStatus(v)}>
+            <Select value={status} onValueChange={(v: any) => setStatus(v)} disabled={paymentMethod === "boleto"}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="paid">Pago</SelectItem>
@@ -205,6 +205,22 @@ function VendasPage() {
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <Label>Forma de pagamento</Label>
+            <Select value={paymentMethod} onValueChange={(v: any) => { setPaymentMethod(v); if (v === "boleto") setStatus("unpaid"); }}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="direct">Direto (dinheiro / PIX / cartão)</SelectItem>
+                <SelectItem value="boleto">Boleto (cai na conta do fornecedor)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {paymentMethod === "boleto" && (
+            <div>
+              <Label>Vencimento do boleto</Label>
+              <Input type="date" value={boletoDue} onChange={(e) => setBoletoDue(e.target.value)} />
+            </div>
+          )}
           {status === "scheduled" && (
             <div>
               <Label>Data de entrega</Label>
