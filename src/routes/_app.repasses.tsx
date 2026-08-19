@@ -12,6 +12,9 @@ import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { Trash2, FileText, Printer, Search } from "lucide-react";
 import { useSort, SortHeader } from "@/hooks/use-sort";
+import { PrintPortal } from "@/components/print-portal";
+import { ReceiptDoc, BoletoReportDoc } from "@/components/print-docs";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_app/repasses")({ component: RepassesPage });
 
@@ -31,19 +34,41 @@ function RepassesPage() {
   const [qPend, setQPend] = useState("");
   const [qHist, setQHist] = useState("");
   const [periodMonth, setPeriodMonth] = useState<string>("");
+  const [boletos, setBoletos] = useState<any[]>([]);
+  const [openBoletoReport, setOpenBoletoReport] = useState(false);
 
   const load = async () => {
     const [paysRes, salesRes] = await Promise.all([
       (supabase as any).from("supplier_payments").select("*").order("paid_at", { ascending: false }),
-      supabase.from("sales").select("id, product_id, quantity, repassed_quantity, unit_cost, supplier_payment_id, status, products(name)"),
+      supabase.from("sales").select("id, product_id, quantity, repassed_quantity, unit_cost, supplier_payment_id, status, payment_method, boleto_due_date, boleto_paid_at, products(name), customers(name)"),
     ]);
     setPayments(paysRes.data ?? []);
     const sales = (salesRes.data ?? []) as any[];
     setSupplierTotal(sales.reduce((a, s) => a + Number(s.unit_cost) * s.quantity, 0));
 
-    // Agrupa vendas pendentes (sem repasse) por produto
+    // Boletos: pagos direto na conta do fornecedor
+    setBoletos(
+      sales
+        .filter((s: any) => s.payment_method === "boleto")
+        .map((s: any) => ({
+          id: s.id,
+          product_name: s.products?.name ?? "—",
+          customer_name: s.customers?.name ?? null,
+          quantity: s.quantity,
+          unit_cost: Number(s.unit_cost),
+          total: Number(s.unit_cost) * s.quantity,
+          due_date: s.boleto_due_date,
+          paid_at: s.boleto_paid_at,
+        }))
+        .sort((a, b) => String(a.due_date ?? "").localeCompare(String(b.due_date ?? ""))),
+    );
+
+    // Agrupa vendas pendentes (sem repasse) por produto — boletos ficam de fora
     const pend = sales.filter(
-      (s: any) => s.status !== "scheduled" && s.quantity - (s.repassed_quantity ?? 0) > 0,
+      (s: any) =>
+        s.status !== "scheduled" &&
+        s.payment_method !== "boleto" &&
+        s.quantity - (s.repassed_quantity ?? 0) > 0,
     );
     const grouped = new Map<string, PendingItem>();
     const idsMap: Record<string, SaleRemain[]> = {};
@@ -147,7 +172,23 @@ function RepassesPage() {
   };
 
   const paid = payments.reduce((a, p) => a + Number(p.amount), 0);
-  const owed = supplierTotal - paid;
+  const boletoPaidTotal = boletos.filter((b) => b.paid_at).reduce((a, b) => a + b.total, 0);
+  const boletoOpenTotal = boletos.filter((b) => !b.paid_at).reduce((a, b) => a + b.total, 0);
+  const owed = supplierTotal - paid - boletoPaidTotal;
+
+  const confirmBoleto = async (b: any, confirm: boolean) => {
+    const { error } = await (supabase as any)
+      .from("sales")
+      .update({
+        boleto_paid_at: confirm ? new Date().toISOString() : null,
+        status: confirm ? "paid" : "unpaid",
+        repassed_quantity: confirm ? b.quantity : 0,
+      })
+      .eq("id", b.id);
+    if (error) return toast.error(error.message);
+    toast.success(confirm ? "Boleto confirmado — descontado do saldo devido" : "Confirmação desfeita");
+    load();
+  };
 
   const filteredPending = pending.filter((p) => {
     const t = qPend.toLowerCase().trim();

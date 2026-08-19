@@ -115,11 +115,14 @@ export type Database = {
       }
       sales: {
         Row: {
+          boleto_due_date: string | null
+          boleto_paid_at: string | null
           created_at: string
           created_by: string | null
           customer_id: string | null
           delivery_date: string | null
           id: string
+          payment_method: string
           product_id: string
           quantity: number
           repassed_quantity: number
@@ -129,11 +132,14 @@ export type Database = {
           unit_sale_price: number
         }
         Insert: {
+          boleto_due_date?: string | null
+          boleto_paid_at?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
           delivery_date?: string | null
           id?: string
+          payment_method?: string
           product_id: string
           quantity: number
           repassed_quantity?: number
@@ -143,11 +149,14 @@ export type Database = {
           unit_sale_price: number
         }
         Update: {
+          boleto_due_date?: string | null
+          boleto_paid_at?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
           delivery_date?: string | null
           id?: string
+          payment_method?: string
           product_id?: string
           quantity?: number
           repassed_quantity?: number

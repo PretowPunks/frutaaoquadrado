@@ -29,6 +29,8 @@ function VendasPage() {
   const [sales, setSales] = useState<any[]>([]);
   const [customerId, setCustomerId] = useState("");
   const [status, setStatus] = useState<"paid" | "unpaid" | "scheduled">("paid");
+  const [paymentMethod, setPaymentMethod] = useState<"direct" | "boleto">("direct");
+  const [boletoDue, setBoletoDue] = useState<string>("");
   const [deliveryDate, setDeliveryDate] = useState<string>("");
   const [cart, setCart] = useState<CartItem[]>([{ product_id: "", quantity: 1, unit_sale_price: 0 }]);
   const [q, setQ] = useState("");
@@ -62,6 +64,7 @@ function VendasPage() {
 
   const submit = async () => {
     if (status === "scheduled" && !deliveryDate) return toast.error("Informe a data de entrega");
+    if (paymentMethod === "boleto" && !boletoDue) return toast.error("Informe o vencimento do boleto");
     if (cart.length === 0) return toast.error("Adicione ao menos um produto");
     const rows: any[] = [];
     for (const [i, it] of cart.entries()) {
@@ -80,7 +83,9 @@ function VendasPage() {
     const payload = rows.map((r) => ({
       ...r,
       customer_id: customerId || null,
-      status,
+      status: paymentMethod === "boleto" ? "unpaid" : status,
+      payment_method: paymentMethod,
+      boleto_due_date: paymentMethod === "boleto" ? boletoDue : null,
       delivery_date: status === "scheduled" ? deliveryDate : null,
       created_by: u.user?.id,
     }));
@@ -89,6 +94,7 @@ function VendasPage() {
     toast.success(`${rows.length} item(ns) registrado(s)`);
     setCart([{ product_id: "", quantity: 1, unit_sale_price: 0 }]);
     setDeliveryDate("");
+    setBoletoDue("");
     load();
   };
 
@@ -107,14 +113,33 @@ function VendasPage() {
     load();
   };
 
+  const confirmBoleto = async (s: any, confirm: boolean) => {
+    const { error } = await (supabase as any)
+      .from("sales")
+      .update({
+        boleto_paid_at: confirm ? new Date().toISOString() : null,
+        status: confirm ? "paid" : "unpaid",
+        repassed_quantity: confirm ? s.quantity : 0,
+      })
+      .eq("id", s.id);
+    if (error) return toast.error(error.message);
+    toast.success(confirm ? "Boleto confirmado — valor descontado do repasse" : "Confirmação desfeita");
+    load();
+  };
+
   const supplierReturn = sales
     .filter((s) => s.status !== "scheduled")
     .reduce((acc, s) => acc + Number(s.unit_cost) * s.quantity, 0);
+  const boletoPaidCost = sales
+    .filter((s: any) => s.payment_method === "boleto" && s.boleto_paid_at)
+    .reduce((a, s) => a + Number(s.unit_cost) * s.quantity, 0);
   const pending = sales.filter((s) => s.status === "unpaid").reduce((a, s) => a + Number(s.unit_sale_price) * s.quantity, 0);
   const scheduledCount = sales.filter((s) => s.status === "scheduled").length;
 
   const statusLabel = (s: any) =>
-    s.status === "paid" ? "Pago" :
+    s.payment_method === "boleto"
+      ? (s.boleto_paid_at ? "Boleto pago" : `Boleto vence ${s.boleto_due_date ? new Date(s.boleto_due_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`)
+    : s.status === "paid" ? "Pago" :
     s.status === "unpaid" ? "A Pagar" :
     `Agendada ${s.delivery_date ? new Date(s.delivery_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`;
 
@@ -171,7 +196,7 @@ function VendasPage() {
           </div>
           <div>
             <Label>Status</Label>
-            <Select value={status} onValueChange={(v: any) => setStatus(v)}>
+            <Select value={status} onValueChange={(v: any) => setStatus(v)} disabled={paymentMethod === "boleto"}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="paid">Pago</SelectItem>
@@ -180,6 +205,22 @@ function VendasPage() {
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <Label>Forma de pagamento</Label>
+            <Select value={paymentMethod} onValueChange={(v: any) => { setPaymentMethod(v); if (v === "boleto") setStatus("unpaid"); }}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="direct">Direto (dinheiro / PIX / cartão)</SelectItem>
+                <SelectItem value="boleto">Boleto (cai na conta do fornecedor)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {paymentMethod === "boleto" && (
+            <div>
+              <Label>Vencimento do boleto</Label>
+              <Input type="date" value={boletoDue} onChange={(e) => setBoletoDue(e.target.value)} />
+            </div>
+          )}
           {status === "scheduled" && (
             <div>
               <Label>Data de entrega</Label>
@@ -245,7 +286,12 @@ function VendasPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-5">
           <p className="text-xs text-muted-foreground">A retornar ao fornecedor (todas as vendas)</p>
-          <p className="text-2xl font-bold text-primary">{fmtBRL(supplierReturn)}</p>
+          <p className="text-2xl font-bold text-primary">{fmtBRL(supplierReturn - boletoPaidCost)}</p>
+          {boletoPaidCost > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              já descontado {fmtBRL(boletoPaidCost)} pago via boleto
+            </p>
+          )}
         </Card>
         <Card className="p-5">
           <p className="text-xs text-muted-foreground">Vendas A Pagar (pendentes)</p>
@@ -332,17 +378,21 @@ function VendasPage() {
                       <button>
                         <Badge
                           variant={
+                            s.payment_method === "boleto" && !s.boleto_paid_at ? "outline" :
                             s.status === "paid" ? "default" :
                             s.status === "scheduled" ? "secondary" : "destructive"
                           }
                         >
-                          {s.status === "paid" && "Pago"}
-                          {s.status === "unpaid" && "A Pagar"}
-                          {s.status === "scheduled" && `Entrega ${s.delivery_date ? new Date(s.delivery_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`}
+                          {statusLabel(s)}
                         </Badge>
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
+                      {s.payment_method === "boleto" && (
+                        s.boleto_paid_at
+                          ? <DropdownMenuItem onClick={() => confirmBoleto(s, false)}>Desfazer confirmação do boleto</DropdownMenuItem>
+                          : <DropdownMenuItem onClick={() => confirmBoleto(s, true)}>Confirmar pagamento do boleto</DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={() => setSaleStatus(s, "paid")}>Marcar como Pago</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setSaleStatus(s, "unpaid")}>Marcar como A Pagar</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setSaleStatus(s, "scheduled")}>Marcar como Agendada</DropdownMenuItem>
