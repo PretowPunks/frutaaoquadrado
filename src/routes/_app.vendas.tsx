@@ -29,6 +29,8 @@ function VendasPage() {
   const [sales, setSales] = useState<any[]>([]);
   const [customerId, setCustomerId] = useState("");
   const [status, setStatus] = useState<"paid" | "unpaid" | "scheduled">("paid");
+  const [paymentMethod, setPaymentMethod] = useState<"direct" | "boleto">("direct");
+  const [boletoDue, setBoletoDue] = useState<string>("");
   const [deliveryDate, setDeliveryDate] = useState<string>("");
   const [cart, setCart] = useState<CartItem[]>([{ product_id: "", quantity: 1, unit_sale_price: 0 }]);
   const [q, setQ] = useState("");
@@ -62,6 +64,7 @@ function VendasPage() {
 
   const submit = async () => {
     if (status === "scheduled" && !deliveryDate) return toast.error("Informe a data de entrega");
+    if (paymentMethod === "boleto" && !boletoDue) return toast.error("Informe o vencimento do boleto");
     if (cart.length === 0) return toast.error("Adicione ao menos um produto");
     const rows: any[] = [];
     for (const [i, it] of cart.entries()) {
@@ -80,7 +83,9 @@ function VendasPage() {
     const payload = rows.map((r) => ({
       ...r,
       customer_id: customerId || null,
-      status,
+      status: paymentMethod === "boleto" ? "unpaid" : status,
+      payment_method: paymentMethod,
+      boleto_due_date: paymentMethod === "boleto" ? boletoDue : null,
       delivery_date: status === "scheduled" ? deliveryDate : null,
       created_by: u.user?.id,
     }));
@@ -89,6 +94,7 @@ function VendasPage() {
     toast.success(`${rows.length} item(ns) registrado(s)`);
     setCart([{ product_id: "", quantity: 1, unit_sale_price: 0 }]);
     setDeliveryDate("");
+    setBoletoDue("");
     load();
   };
 
@@ -104,6 +110,20 @@ function VendasPage() {
     const { error } = await supabase.from("sales").delete().eq("id", s.id);
     if (error) return toast.error(error.message);
     toast.success("Venda excluída, estoque restaurado");
+    load();
+  };
+
+  const confirmBoleto = async (s: any, confirm: boolean) => {
+    const { error } = await (supabase as any)
+      .from("sales")
+      .update({
+        boleto_paid_at: confirm ? new Date().toISOString() : null,
+        status: confirm ? "paid" : "unpaid",
+        repassed_quantity: confirm ? s.quantity : 0,
+      })
+      .eq("id", s.id);
+    if (error) return toast.error(error.message);
+    toast.success(confirm ? "Boleto confirmado — valor descontado do repasse" : "Confirmação desfeita");
     load();
   };
 
