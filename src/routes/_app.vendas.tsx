@@ -286,7 +286,12 @@ function VendasPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-5">
           <p className="text-xs text-muted-foreground">A retornar ao fornecedor (todas as vendas)</p>
-          <p className="text-2xl font-bold text-primary">{fmtBRL(supplierReturn)}</p>
+          <p className="text-2xl font-bold text-primary">{fmtBRL(supplierReturn - boletoPaidCost)}</p>
+          {boletoPaidCost > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              já descontado {fmtBRL(boletoPaidCost)} pago via boleto
+            </p>
+          )}
         </Card>
         <Card className="p-5">
           <p className="text-xs text-muted-foreground">Vendas A Pagar (pendentes)</p>
