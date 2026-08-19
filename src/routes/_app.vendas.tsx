@@ -378,17 +378,21 @@ function VendasPage() {
                       <button>
                         <Badge
                           variant={
+                            s.payment_method === "boleto" && !s.boleto_paid_at ? "outline" :
                             s.status === "paid" ? "default" :
                             s.status === "scheduled" ? "secondary" : "destructive"
                           }
                         >
-                          {s.status === "paid" && "Pago"}
-                          {s.status === "unpaid" && "A Pagar"}
-                          {s.status === "scheduled" && `Entrega ${s.delivery_date ? new Date(s.delivery_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`}
+                          {statusLabel(s)}
                         </Badge>
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
+                      {s.payment_method === "boleto" && (
+                        s.boleto_paid_at
+                          ? <DropdownMenuItem onClick={() => confirmBoleto(s, false)}>Desfazer confirmação do boleto</DropdownMenuItem>
+                          : <DropdownMenuItem onClick={() => confirmBoleto(s, true)}>Confirmar pagamento do boleto</DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={() => setSaleStatus(s, "paid")}>Marcar como Pago</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setSaleStatus(s, "unpaid")}>Marcar como A Pagar</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setSaleStatus(s, "scheduled")}>Marcar como Agendada</DropdownMenuItem>
