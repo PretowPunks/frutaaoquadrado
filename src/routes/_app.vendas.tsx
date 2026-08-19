@@ -130,11 +130,16 @@ function VendasPage() {
   const supplierReturn = sales
     .filter((s) => s.status !== "scheduled")
     .reduce((acc, s) => acc + Number(s.unit_cost) * s.quantity, 0);
+  const boletoPaidCost = sales
+    .filter((s: any) => s.payment_method === "boleto" && s.boleto_paid_at)
+    .reduce((a, s) => a + Number(s.unit_cost) * s.quantity, 0);
   const pending = sales.filter((s) => s.status === "unpaid").reduce((a, s) => a + Number(s.unit_sale_price) * s.quantity, 0);
   const scheduledCount = sales.filter((s) => s.status === "scheduled").length;
 
   const statusLabel = (s: any) =>
-    s.status === "paid" ? "Pago" :
+    s.payment_method === "boleto"
+      ? (s.boleto_paid_at ? "Boleto pago" : `Boleto vence ${s.boleto_due_date ? new Date(s.boleto_due_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`)
+    : s.status === "paid" ? "Pago" :
     s.status === "unpaid" ? "A Pagar" :
     `Agendada ${s.delivery_date ? new Date(s.delivery_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`;
 
