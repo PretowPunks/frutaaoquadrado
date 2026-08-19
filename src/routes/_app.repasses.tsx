@@ -172,7 +172,23 @@ function RepassesPage() {
   };
 
   const paid = payments.reduce((a, p) => a + Number(p.amount), 0);
-  const owed = supplierTotal - paid;
+  const boletoPaidTotal = boletos.filter((b) => b.paid_at).reduce((a, b) => a + b.total, 0);
+  const boletoOpenTotal = boletos.filter((b) => !b.paid_at).reduce((a, b) => a + b.total, 0);
+  const owed = supplierTotal - paid - boletoPaidTotal;
+
+  const confirmBoleto = async (b: any, confirm: boolean) => {
+    const { error } = await (supabase as any)
+      .from("sales")
+      .update({
+        boleto_paid_at: confirm ? new Date().toISOString() : null,
+        status: confirm ? "paid" : "unpaid",
+        repassed_quantity: confirm ? b.quantity : 0,
+      })
+      .eq("id", b.id);
+    if (error) return toast.error(error.message);
+    toast.success(confirm ? "Boleto confirmado — descontado do saldo devido" : "Confirmação desfeita");
+    load();
+  };
 
   const filteredPending = pending.filter((p) => {
     const t = qPend.toLowerCase().trim();
