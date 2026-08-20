@@ -232,7 +232,7 @@ function RepassesPage() {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Repasses ao Fornecedor</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-5">
           <p className="text-xs text-muted-foreground">Total gerado pelas vendas (custo)</p>
           <p className="text-2xl font-bold">{fmtBRL(supplierTotal)}</p>
@@ -242,10 +242,69 @@ function RepassesPage() {
           <p className="text-2xl font-bold text-primary">{fmtBRL(paid)}</p>
         </Card>
         <Card className="p-5">
+          <p className="text-xs text-muted-foreground">Boletos pagos (direto ao fornecedor)</p>
+          <p className="text-2xl font-bold text-primary">{fmtBRL(boletoPaidTotal)}</p>
+          {boletoOpenTotal > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">{fmtBRL(boletoOpenTotal)} aguardando confirmação</p>
+          )}
+        </Card>
+        <Card className="p-5">
           <p className="text-xs text-muted-foreground">Saldo devido</p>
           <p className={`text-2xl font-bold ${owed > 0 ? "text-destructive" : "text-primary"}`}>{fmtBRL(owed)}</p>
         </Card>
       </div>
+
+      <Card className="p-5 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h3 className="font-semibold">Boletos — pagamento direto ao fornecedor</h3>
+          {boletos.length > 0 && (
+            <Button size="sm" variant="outline" onClick={() => setOpenBoletoReport(true)}>
+              <FileText className="h-4 w-4 mr-1" /> Relatório de boletos
+            </Button>
+          )}
+        </div>
+        {boletos.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhuma venda em boleto registrada.</p>
+        ) : (
+          <div className="overflow-auto rounded border">
+            <table className="w-full text-sm">
+              <thead className="bg-secondary text-secondary-foreground">
+                <tr>
+                  <th className="text-left p-2">Produto</th>
+                  <th className="text-left p-2">Cliente</th>
+                  <th className="text-left p-2">Vencimento</th>
+                  <th className="text-right p-2">Qtd</th>
+                  <th className="text-right p-2">Valor (custo)</th>
+                  <th className="text-center p-2">Situação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {boletos.map((b) => (
+                  <tr key={b.id} className="border-t">
+                    <td className="p-2">{b.product_name}</td>
+                    <td className="p-2">{b.customer_name ?? "—"}</td>
+                    <td className="p-2">{b.due_date ? new Date(b.due_date + "T00:00:00").toLocaleDateString("pt-BR") : "—"}</td>
+                    <td className="p-2 text-right">{b.quantity}</td>
+                    <td className="p-2 text-right font-semibold">{fmtBRL(b.total)}</td>
+                    <td className="p-2 text-center">
+                      {b.paid_at ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <Badge>Pago em {new Date(b.paid_at).toLocaleDateString("pt-BR")}</Badge>
+                          <Button size="sm" variant="ghost" onClick={() => confirmBoleto(b, false)}>Desfazer</Button>
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => confirmBoleto(b, true)}>
+                          Confirmar pagamento
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       <Card className="p-5 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -401,65 +460,53 @@ function RepassesPage() {
             <DialogTitle>Comprovante de Repasse — Fruta²</DialogTitle>
           </DialogHeader>
           {openReceipt && (
-            <div id="receipt-printable" className="space-y-4 text-sm">
-              <div className="flex justify-between border-b pb-2">
-                <div>
-                  <p className="text-muted-foreground">Data do pagamento</p>
-                  <p className="font-semibold">{new Date(openReceipt.payment.paid_at).toLocaleDateString("pt-BR")}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-muted-foreground">Repasse nº</p>
-                  <p className="font-mono text-xs">{openReceipt.payment.id.slice(0, 8).toUpperCase()}</p>
-                </div>
+            <>
+              <div className="max-h-[65vh] overflow-auto pr-1">
+                <ReceiptDoc
+                  payment={openReceipt.payment}
+                  items={openReceipt.items}
+                  boletos={boletos.filter((b) => b.paid_at)}
+                />
               </div>
-
-              <div>
-                <p className="font-semibold mb-2">Produtos vendidos incluídos neste repasse:</p>
-                <div className="overflow-auto rounded border">
-                  <table className="w-full">
-                    <thead className="bg-secondary text-secondary-foreground">
-                      <tr>
-                        <th className="text-left p-2">Produto</th>
-                        <th className="text-right p-2">Qtd</th>
-                        <th className="text-right p-2">Custo unit.</th>
-                        <th className="text-right p-2">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {openReceipt.items.map((it) => (
-                        <tr key={it.id} className="border-t">
-                          <td className="p-2">{it.product_name}</td>
-                          <td className="p-2 text-right">{it.quantity}</td>
-                          <td className="p-2 text-right">{fmtBRL(it.unit_cost)}</td>
-                          <td className="p-2 text-right font-semibold">{fmtBRL(it.total_cost)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-muted/50">
-                      <tr>
-                        <td className="p-2 font-bold" colSpan={3}>TOTAL DO REPASSE</td>
-                        <td className="p-2 text-right font-bold">{fmtBRL(openReceipt.payment.amount)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </div>
-
-              {openReceipt.payment.note && (
-                <div className="text-sm">
-                  <p className="text-muted-foreground">Observação:</p>
-                  <p>{openReceipt.payment.note}</p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-8 pt-8 text-center text-xs">
-                <div className="border-t pt-2">Assinatura — Fruta²</div>
-                <div className="border-t pt-2">Assinatura — Fornecedor</div>
-              </div>
-            </div>
+              <PrintPortal>
+                <ReceiptDoc
+                  payment={openReceipt.payment}
+                  items={openReceipt.items}
+                  boletos={boletos.filter((b) => b.paid_at)}
+                />
+              </PrintPortal>
+            </>
           )}
           <DialogFooter className="print:hidden">
             <Button variant="outline" onClick={() => setOpenReceipt(null)}>Fechar</Button>
+            <Button onClick={() => window.print()}>
+              <Printer className="h-4 w-4 mr-2" /> Imprimir / Salvar PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openBoletoReport} onOpenChange={setOpenBoletoReport}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Relatório de Boletos — Fruta²</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[65vh] overflow-auto pr-1">
+            <BoletoReportDoc
+              rows={boletos.filter((b) => b.paid_at)}
+              periodLabel={`Emitido em ${new Date().toLocaleDateString("pt-BR")}`}
+            />
+          </div>
+          {openBoletoReport && (
+            <PrintPortal>
+              <BoletoReportDoc
+                rows={boletos.filter((b) => b.paid_at)}
+                periodLabel={`Emitido em ${new Date().toLocaleDateString("pt-BR")}`}
+              />
+            </PrintPortal>
+          )}
+          <DialogFooter className="print:hidden">
+            <Button variant="outline" onClick={() => setOpenBoletoReport(false)}>Fechar</Button>
             <Button onClick={() => window.print()}>
               <Printer className="h-4 w-4 mr-2" /> Imprimir / Salvar PDF
             </Button>

@@ -11,6 +11,9 @@ import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { useSort, SortHeader } from "@/hooks/use-sort";
+import { PrintPortal } from "@/components/print-portal";
+import { OrderCardDoc } from "@/components/print-docs";
+import { Printer, Copy, FileText } from "lucide-react";
 
 export const Route = createFileRoute("/_app/clientes")({ component: ClientesPage });
 
@@ -21,6 +24,7 @@ function ClientesPage() {
   const [history, setHistory] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(""); const [phone, setPhone] = useState(""); const [address, setAddress] = useState("");
+  const [order, setOrder] = useState<any | null>(null);
 
   const load = async () => {
     const { data } = await supabase.from("customers").select("*").order("name");
@@ -30,9 +34,9 @@ function ClientesPage() {
 
   useEffect(() => {
     if (!selected) { setHistory([]); return; }
-    supabase.from("sales").select("*, products(name)").eq("customer_id", selected.id)
+    (supabase as any).from("sales").select("*, products(name)").eq("customer_id", selected.id)
       .order("created_at", { ascending: false })
-      .then(({ data }) => setHistory(data ?? []));
+      .then(({ data }: any) => setHistory(data ?? []));
   }, [selected]);
 
   const histSort = useSort(history, {
@@ -49,6 +53,50 @@ function ClientesPage() {
     if (error) return toast.error(error.message);
     toast.success("Cliente cadastrado");
     setName(""); setPhone(""); setAddress(""); setOpen(false); load();
+  };
+
+  // Agrupa as vendas do cliente em "pedidos" (itens lançados no mesmo momento)
+  const orders = (() => {
+    const map = new Map<string, any>();
+    for (const h of history) {
+      const key = new Date(h.created_at).toISOString().slice(0, 16);
+      const cur = map.get(key) ?? { key, created_at: h.created_at, items: [] as any[], status: h.status, payment_method: h.payment_method, boleto_due_date: h.boleto_due_date };
+      cur.items.push(h);
+      map.set(key, cur);
+    }
+    return Array.from(map.values())
+      .map((o) => ({ ...o, total: o.items.reduce((a: number, i: any) => a + Number(i.unit_sale_price) * i.quantity, 0) }))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  })();
+
+  const orderStatusLabel = (o: any) =>
+    o.payment_method === "boleto"
+      ? `Boleto${o.boleto_due_date ? ` — vence ${new Date(o.boleto_due_date + "T00:00:00").toLocaleDateString("pt-BR")}` : ""}`
+      : o.status === "paid" ? "Pago"
+      : o.status === "unpaid" ? "A pagar"
+      : "Entrega agendada";
+
+  const orderItems = (o: any) =>
+    o.items.map((i: any) => ({
+      product_name: i.products?.name ?? "—",
+      quantity: i.quantity,
+      unit_price: Number(i.unit_sale_price),
+      total: Number(i.unit_sale_price) * i.quantity,
+    }));
+
+  const copyOrder = (o: any) => {
+    const lines = [
+      `*Fruta² — Pedido*`,
+      `Cliente: ${selected?.name}`,
+      `Data: ${new Date(o.created_at).toLocaleDateString("pt-BR")}`,
+      "",
+      ...orderItems(o).map((i: any) => `• ${i.product_name} — ${i.quantity} x ${fmtBRL(i.unit_price)} = ${fmtBRL(i.total)}`),
+      "",
+      `*Total: ${fmtBRL(o.total)}*`,
+      orderStatusLabel(o),
+    ];
+    navigator.clipboard.writeText(lines.join("\n"));
+    toast.success("Pedido copiado — cole no WhatsApp ou Instagram");
   };
 
   const remove = async (id: string) => {
@@ -117,6 +165,33 @@ function ClientesPage() {
                 <p className="text-sm"><strong>Telefone:</strong> {selected.phone || "—"}</p>
                 <p className="text-sm"><strong>Endereço:</strong> {selected.address || "—"}</p>
               </Card>
+
+              <Card className="p-0 overflow-hidden">
+                <h4 className="p-4 font-semibold border-b">Pedidos — gerar relatório para o cliente</h4>
+                {orders.length === 0 ? (
+                  <p className="p-4 text-sm text-muted-foreground">Nenhum pedido registrado.</p>
+                ) : (
+                  <ul className="divide-y">
+                    {orders.map((o) => (
+                      <li key={o.key} className="p-3 flex items-center justify-between gap-3 flex-wrap">
+                        <div className="text-sm">
+                          <p className="font-medium">
+                            {new Date(o.created_at).toLocaleDateString("pt-BR")} · {o.items.length} item(ns)
+                          </p>
+                          <p className="text-xs text-muted-foreground">{orderStatusLabel(o)}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{fmtBRL(o.total)}</span>
+                          <Button size="sm" variant="outline" onClick={() => setOrder(o)}>
+                            <FileText className="h-4 w-4 mr-1" /> Relatório
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+
               <Card className="p-0 overflow-hidden">
                 <h4 className="p-4 font-semibold border-b">Histórico de Compras</h4>
                 {history.length === 0 ? (
@@ -154,6 +229,40 @@ function ClientesPage() {
           )}
         </div>
       </div>
+
+      <Dialog open={!!order} onOpenChange={(o) => !o && setOrder(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Pedido — conferência do cliente</DialogTitle></DialogHeader>
+          {order && selected && (
+            <>
+              <div className="max-h-[65vh] overflow-auto">
+                <OrderCardDoc
+                  customer={{ name: selected.name, phone: selected.phone }}
+                  createdAt={order.created_at}
+                  items={orderItems(order)}
+                  status={orderStatusLabel(order)}
+                />
+              </div>
+              <PrintPortal>
+                <OrderCardDoc
+                  customer={{ name: selected.name, phone: selected.phone }}
+                  createdAt={order.created_at}
+                  items={orderItems(order)}
+                  status={orderStatusLabel(order)}
+                />
+              </PrintPortal>
+            </>
+          )}
+          <DialogFooter className="print:hidden gap-2">
+            <Button variant="outline" onClick={() => order && copyOrder(order)}>
+              <Copy className="h-4 w-4 mr-2" /> Copiar texto
+            </Button>
+            <Button onClick={() => window.print()}>
+              <Printer className="h-4 w-4 mr-2" /> Imprimir / PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
