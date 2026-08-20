@@ -11,6 +11,9 @@ import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { useSort, SortHeader } from "@/hooks/use-sort";
+import { PrintPortal } from "@/components/print-portal";
+import { OrderCardDoc } from "@/components/print-docs";
+import { Printer, Copy, FileText } from "lucide-react";
 
 export const Route = createFileRoute("/_app/clientes")({ component: ClientesPage });
 
@@ -21,6 +24,7 @@ function ClientesPage() {
   const [history, setHistory] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(""); const [phone, setPhone] = useState(""); const [address, setAddress] = useState("");
+  const [order, setOrder] = useState<any | null>(null);
 
   const load = async () => {
     const { data } = await supabase.from("customers").select("*").order("name");
