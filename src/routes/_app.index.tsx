@@ -44,12 +44,15 @@ function Dashboard() {
       let totalProfit = 0;
       let supplierReturn = 0;
       let pendingPayment = 0;
+      let boletoPaid = 0;
       const byProduct = new Map<string, number>();
 
       for (const s of sales ?? []) {
         const profit = (Number(s.unit_sale_price) - Number(s.unit_cost)) * s.quantity;
         totalProfit += profit;
         supplierReturn += Number(s.unit_cost) * s.quantity;
+        if ((s as any).payment_method === "boleto" && (s as any).boleto_paid_at)
+          boletoPaid += Number(s.unit_cost) * s.quantity;
         if (s.status === "unpaid")
           pendingPayment += Number(s.unit_sale_price) * s.quantity;
         const name = (s as any).products?.name ?? "—";
@@ -63,7 +66,7 @@ function Dashboard() {
         totalProfit,
         supplierReturn,
         supplierPaid,
-        supplierOwed: supplierReturn - supplierPaid,
+        supplierOwed: supplierReturn - supplierPaid - boletoPaid,
         pendingPayment,
         lowStock,
         profitByProduct: [...byProduct.entries()]
