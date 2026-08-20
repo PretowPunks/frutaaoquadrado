@@ -34,9 +34,9 @@ function ClientesPage() {
 
   useEffect(() => {
     if (!selected) { setHistory([]); return; }
-    supabase.from("sales").select("*, products(name)").eq("customer_id", selected.id)
+    (supabase as any).from("sales").select("*, products(name)").eq("customer_id", selected.id)
       .order("created_at", { ascending: false })
-      .then(({ data }) => setHistory(data ?? []));
+      .then(({ data }: any) => setHistory(data ?? []));
   }, [selected]);
 
   const histSort = useSort(history, {
