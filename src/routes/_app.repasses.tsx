@@ -460,65 +460,53 @@ function RepassesPage() {
             <DialogTitle>Comprovante de Repasse — Fruta²</DialogTitle>
           </DialogHeader>
           {openReceipt && (
-            <div id="receipt-printable" className="space-y-4 text-sm">
-              <div className="flex justify-between border-b pb-2">
-                <div>
-                  <p className="text-muted-foreground">Data do pagamento</p>
-                  <p className="font-semibold">{new Date(openReceipt.payment.paid_at).toLocaleDateString("pt-BR")}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-muted-foreground">Repasse nº</p>
-                  <p className="font-mono text-xs">{openReceipt.payment.id.slice(0, 8).toUpperCase()}</p>
-                </div>
+            <>
+              <div className="max-h-[65vh] overflow-auto pr-1">
+                <ReceiptDoc
+                  payment={openReceipt.payment}
+                  items={openReceipt.items}
+                  boletos={boletos.filter((b) => b.paid_at)}
+                />
               </div>
-
-              <div>
-                <p className="font-semibold mb-2">Produtos vendidos incluídos neste repasse:</p>
-                <div className="overflow-auto rounded border">
-                  <table className="w-full">
-                    <thead className="bg-secondary text-secondary-foreground">
-                      <tr>
-                        <th className="text-left p-2">Produto</th>
-                        <th className="text-right p-2">Qtd</th>
-                        <th className="text-right p-2">Custo unit.</th>
-                        <th className="text-right p-2">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {openReceipt.items.map((it) => (
-                        <tr key={it.id} className="border-t">
-                          <td className="p-2">{it.product_name}</td>
-                          <td className="p-2 text-right">{it.quantity}</td>
-                          <td className="p-2 text-right">{fmtBRL(it.unit_cost)}</td>
-                          <td className="p-2 text-right font-semibold">{fmtBRL(it.total_cost)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-muted/50">
-                      <tr>
-                        <td className="p-2 font-bold" colSpan={3}>TOTAL DO REPASSE</td>
-                        <td className="p-2 text-right font-bold">{fmtBRL(openReceipt.payment.amount)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </div>
-
-              {openReceipt.payment.note && (
-                <div className="text-sm">
-                  <p className="text-muted-foreground">Observação:</p>
-                  <p>{openReceipt.payment.note}</p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-8 pt-8 text-center text-xs">
-                <div className="border-t pt-2">Assinatura — Fruta²</div>
-                <div className="border-t pt-2">Assinatura — Fornecedor</div>
-              </div>
-            </div>
+              <PrintPortal>
+                <ReceiptDoc
+                  payment={openReceipt.payment}
+                  items={openReceipt.items}
+                  boletos={boletos.filter((b) => b.paid_at)}
+                />
+              </PrintPortal>
+            </>
           )}
           <DialogFooter className="print:hidden">
             <Button variant="outline" onClick={() => setOpenReceipt(null)}>Fechar</Button>
+            <Button onClick={() => window.print()}>
+              <Printer className="h-4 w-4 mr-2" /> Imprimir / Salvar PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openBoletoReport} onOpenChange={setOpenBoletoReport}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Relatório de Boletos — Fruta²</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[65vh] overflow-auto pr-1">
+            <BoletoReportDoc
+              rows={boletos.filter((b) => b.paid_at)}
+              periodLabel={`Emitido em ${new Date().toLocaleDateString("pt-BR")}`}
+            />
+          </div>
+          {openBoletoReport && (
+            <PrintPortal>
+              <BoletoReportDoc
+                rows={boletos.filter((b) => b.paid_at)}
+                periodLabel={`Emitido em ${new Date().toLocaleDateString("pt-BR")}`}
+              />
+            </PrintPortal>
+          )}
+          <DialogFooter className="print:hidden">
+            <Button variant="outline" onClick={() => setOpenBoletoReport(false)}>Fechar</Button>
             <Button onClick={() => window.print()}>
               <Printer className="h-4 w-4 mr-2" /> Imprimir / Salvar PDF
             </Button>
