@@ -229,6 +229,40 @@ function ClientesPage() {
           )}
         </div>
       </div>
+
+      <Dialog open={!!order} onOpenChange={(o) => !o && setOrder(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Pedido — conferência do cliente</DialogTitle></DialogHeader>
+          {order && selected && (
+            <>
+              <div className="max-h-[65vh] overflow-auto">
+                <OrderCardDoc
+                  customer={{ name: selected.name, phone: selected.phone }}
+                  createdAt={order.created_at}
+                  items={orderItems(order)}
+                  status={orderStatusLabel(order)}
+                />
+              </div>
+              <PrintPortal>
+                <OrderCardDoc
+                  customer={{ name: selected.name, phone: selected.phone }}
+                  createdAt={order.created_at}
+                  items={orderItems(order)}
+                  status={orderStatusLabel(order)}
+                />
+              </PrintPortal>
+            </>
+          )}
+          <DialogFooter className="print:hidden gap-2">
+            <Button variant="outline" onClick={() => order && copyOrder(order)}>
+              <Copy className="h-4 w-4 mr-2" /> Copiar texto
+            </Button>
+            <Button onClick={() => window.print()}>
+              <Printer className="h-4 w-4 mr-2" /> Imprimir / PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
