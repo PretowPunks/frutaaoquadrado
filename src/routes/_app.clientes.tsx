@@ -165,6 +165,33 @@ function ClientesPage() {
                 <p className="text-sm"><strong>Telefone:</strong> {selected.phone || "—"}</p>
                 <p className="text-sm"><strong>Endereço:</strong> {selected.address || "—"}</p>
               </Card>
+
+              <Card className="p-0 overflow-hidden">
+                <h4 className="p-4 font-semibold border-b">Pedidos — gerar relatório para o cliente</h4>
+                {orders.length === 0 ? (
+                  <p className="p-4 text-sm text-muted-foreground">Nenhum pedido registrado.</p>
+                ) : (
+                  <ul className="divide-y">
+                    {orders.map((o) => (
+                      <li key={o.key} className="p-3 flex items-center justify-between gap-3 flex-wrap">
+                        <div className="text-sm">
+                          <p className="font-medium">
+                            {new Date(o.created_at).toLocaleDateString("pt-BR")} · {o.items.length} item(ns)
+                          </p>
+                          <p className="text-xs text-muted-foreground">{orderStatusLabel(o)}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{fmtBRL(o.total)}</span>
+                          <Button size="sm" variant="outline" onClick={() => setOrder(o)}>
+                            <FileText className="h-4 w-4 mr-1" /> Relatório
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+
               <Card className="p-0 overflow-hidden">
                 <h4 className="p-4 font-semibold border-b">Histórico de Compras</h4>
                 {history.length === 0 ? (
