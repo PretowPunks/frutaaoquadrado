@@ -99,14 +99,6 @@ function ClientesPage() {
     toast.success("Pedido copiado — cole no WhatsApp ou Instagram");
   };
 
-  const createLegacy = async () => {
-    if (!name.trim()) return toast.error("Nome obrigatório");
-    const { error } = await supabase.from("customers").insert({ name, phone, address });
-    if (error) return toast.error(error.message);
-    toast.success("Cliente cadastrado");
-    setName(""); setPhone(""); setAddress(""); setOpen(false); load();
-  };
-
   const remove = async (id: string) => {
     if (!confirm("Remover cliente?")) return;
     const { error } = await supabase.from("customers").delete().eq("id", id);
