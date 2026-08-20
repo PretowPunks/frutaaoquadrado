@@ -55,6 +55,58 @@ function ClientesPage() {
     setName(""); setPhone(""); setAddress(""); setOpen(false); load();
   };
 
+  // Agrupa as vendas do cliente em "pedidos" (itens lançados no mesmo momento)
+  const orders = (() => {
+    const map = new Map<string, any>();
+    for (const h of history) {
+      const key = new Date(h.created_at).toISOString().slice(0, 16);
+      const cur = map.get(key) ?? { key, created_at: h.created_at, items: [] as any[], status: h.status, payment_method: h.payment_method, boleto_due_date: h.boleto_due_date };
+      cur.items.push(h);
+      map.set(key, cur);
+    }
+    return Array.from(map.values())
+      .map((o) => ({ ...o, total: o.items.reduce((a: number, i: any) => a + Number(i.unit_sale_price) * i.quantity, 0) }))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  })();
+
+  const orderStatusLabel = (o: any) =>
+    o.payment_method === "boleto"
+      ? `Boleto${o.boleto_due_date ? ` — vence ${new Date(o.boleto_due_date + "T00:00:00").toLocaleDateString("pt-BR")}` : ""}`
+      : o.status === "paid" ? "Pago"
+      : o.status === "unpaid" ? "A pagar"
+      : "Entrega agendada";
+
+  const orderItems = (o: any) =>
+    o.items.map((i: any) => ({
+      product_name: i.products?.name ?? "—",
+      quantity: i.quantity,
+      unit_price: Number(i.unit_sale_price),
+      total: Number(i.unit_sale_price) * i.quantity,
+    }));
+
+  const copyOrder = (o: any) => {
+    const lines = [
+      `*Fruta² — Pedido*`,
+      `Cliente: ${selected?.name}`,
+      `Data: ${new Date(o.created_at).toLocaleDateString("pt-BR")}`,
+      "",
+      ...orderItems(o).map((i: any) => `• ${i.product_name} — ${i.quantity} x ${fmtBRL(i.unit_price)} = ${fmtBRL(i.total)}`),
+      "",
+      `*Total: ${fmtBRL(o.total)}*`,
+      orderStatusLabel(o),
+    ];
+    navigator.clipboard.writeText(lines.join("\n"));
+    toast.success("Pedido copiado — cole no WhatsApp ou Instagram");
+  };
+
+  const createLegacy = async () => {
+    if (!name.trim()) return toast.error("Nome obrigatório");
+    const { error } = await supabase.from("customers").insert({ name, phone, address });
+    if (error) return toast.error(error.message);
+    toast.success("Cliente cadastrado");
+    setName(""); setPhone(""); setAddress(""); setOpen(false); load();
+  };
+
   const remove = async (id: string) => {
     if (!confirm("Remover cliente?")) return;
     const { error } = await supabase.from("customers").delete().eq("id", id);
