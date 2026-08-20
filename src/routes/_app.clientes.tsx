@@ -198,7 +198,10 @@ function ClientesPage() {
                     </thead>
                     <tbody>
                       {histSort.sorted.map((h) => (
-                        <tr key={h.id} className="border-t">
+                        <tr key={h.id} className={"border-t " + (picked.has(h.id) ? "bg-muted/50" : "")}>
+                          <td className="p-3">
+                            <Checkbox checked={picked.has(h.id)} onCheckedChange={() => togglePick(h.id)} />
+                          </td>
                           <td className="p-3">{new Date(h.created_at).toLocaleDateString("pt-BR")}</td>
                           <td className="p-3">{h.products?.name}</td>
                           <td className="p-3 text-right">{h.quantity}</td>
@@ -219,31 +222,31 @@ function ClientesPage() {
         </div>
       </div>
 
-      <Dialog open={!!order} onOpenChange={(o) => !o && setOrder(null)}>
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Pedido — conferência do cliente</DialogTitle></DialogHeader>
-          {order && selected && (
+          {reportItems.length > 0 && selected && (
             <>
               <div className="max-h-[65vh] overflow-auto">
                 <OrderCardDoc
                   customer={{ name: selected.name, phone: selected.phone }}
-                  createdAt={order.created_at}
-                  items={orderItems(order)}
-                  status={orderStatusLabel(order)}
+                  createdAt={new Date().toISOString()}
+                  items={reportItems}
+                  status={reportStatus}
                 />
               </div>
               <PrintPortal>
                 <OrderCardDoc
                   customer={{ name: selected.name, phone: selected.phone }}
-                  createdAt={order.created_at}
-                  items={orderItems(order)}
-                  status={orderStatusLabel(order)}
+                  createdAt={new Date().toISOString()}
+                  items={reportItems}
+                  status={reportStatus}
                 />
               </PrintPortal>
             </>
           )}
           <DialogFooter className="print:hidden gap-2">
-            <Button variant="outline" onClick={() => order && copyOrder(order)}>
+            <Button variant="outline" onClick={copyReport}>
               <Copy className="h-4 w-4 mr-2" /> Copiar texto
             </Button>
             <Button onClick={() => window.print()}>
