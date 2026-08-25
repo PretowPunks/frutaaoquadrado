@@ -189,6 +189,7 @@ function ClientesPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-secondary text-secondary-foreground">
                       <tr>
+                        <th className="p-3 w-10"><Checkbox checked={allPicked} onCheckedChange={toggleAll} /></th>
                         <th className="text-left p-3"><SortHeader label="Data" sortKey="created_at" currentKey={histSort.sortKey} dir={histSort.sortDir} onToggle={histSort.toggle} /></th>
                         <th className="text-left p-3"><SortHeader label="Produto" sortKey="product" currentKey={histSort.sortKey} dir={histSort.sortDir} onToggle={histSort.toggle} /></th>
                         <th className="text-right p-3"><SortHeader label="Qtd" sortKey="quantity" currentKey={histSort.sortKey} dir={histSort.sortDir} onToggle={histSort.toggle} /></th>
