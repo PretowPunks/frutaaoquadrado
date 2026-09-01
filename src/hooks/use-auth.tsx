@@ -2,10 +2,14 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
+type Role = "admin" | "user" | null;
+
 interface AuthContextValue {
   session: Session | null;
   user: User | null;
+  role: Role;
   isAdmin: boolean;
+  roleLoading: boolean;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -14,24 +18,33 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [role, setRole] = useState<Role>(null);
+  const [roleLoading, setRoleLoading] = useState(true);
   const [loading, setLoading] = useState(true);
+
+  const loadRole = (userId: string) => {
+    setRoleLoading(true);
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .order("role")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        setRole((data?.role as Role) ?? null);
+        setRoleLoading(false);
+      });
+  };
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
       if (s?.user) {
-        setTimeout(() => {
-          supabase
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", s.user.id)
-            .eq("role", "admin")
-            .maybeSingle()
-            .then(({ data }) => setIsAdmin(!!data));
-        }, 0);
+        setTimeout(() => loadRole(s.user.id), 0);
       } else {
-        setIsAdmin(false);
+        setRole(null);
+        setRoleLoading(false);
       }
     });
 
@@ -39,13 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setLoading(false);
       if (data.session?.user) {
-        supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", data.session.user.id)
-          .eq("role", "admin")
-          .maybeSingle()
-          .then(({ data: r }) => setIsAdmin(!!r));
+        loadRole(data.session.user.id);
+      } else {
+        setRoleLoading(false);
       }
     });
 
@@ -57,7 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         session,
         user: session?.user ?? null,
-        isAdmin,
+        role,
+        isAdmin: role === "admin",
+        roleLoading,
         loading,
         signOut: async () => {
           await supabase.auth.signOut();
