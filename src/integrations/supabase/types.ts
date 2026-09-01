@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          owner_id: string | null
           phone: string | null
         }
         Insert: {
@@ -27,6 +28,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          owner_id?: string | null
           phone?: string | null
         }
         Update: {
@@ -34,6 +36,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          owner_id?: string | null
           phone?: string | null
         }
         Relationships: []
@@ -66,6 +69,7 @@ export type Database = {
           id: string
           low_stock_threshold: number
           name: string
+          owner_id: string | null
           sale_price: number
           stock_quantity: number
           updated_at: string
@@ -76,6 +80,7 @@ export type Database = {
           id?: string
           low_stock_threshold?: number
           name: string
+          owner_id?: string | null
           sale_price?: number
           stock_quantity?: number
           updated_at?: string
@@ -86,6 +91,7 @@ export type Database = {
           id?: string
           low_stock_threshold?: number
           name?: string
+          owner_id?: string | null
           sale_price?: number
           stock_quantity?: number
           updated_at?: string
@@ -113,6 +119,39 @@ export type Database = {
         }
         Relationships: []
       }
+      rep_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_user_id: string | null
+          created_at: string
+          email: string
+          id: string
+          invited_by: string | null
+          name: string | null
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_user_id?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          invited_by?: string | null
+          name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_user_id?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          invited_by?: string | null
+          name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sales: {
         Row: {
           boleto_due_date: string | null
@@ -122,6 +161,7 @@ export type Database = {
           customer_id: string | null
           delivery_date: string | null
           id: string
+          owner_id: string | null
           payment_method: string
           product_id: string
           quantity: number
@@ -139,6 +179,7 @@ export type Database = {
           customer_id?: string | null
           delivery_date?: string | null
           id?: string
+          owner_id?: string | null
           payment_method?: string
           product_id: string
           quantity: number
@@ -156,6 +197,7 @@ export type Database = {
           customer_id?: string | null
           delivery_date?: string | null
           id?: string
+          owner_id?: string | null
           payment_method?: string
           product_id?: string
           quantity?: number
@@ -194,6 +236,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          owner_id: string | null
           product_id: string
           quantity: number
           unit_cost: number
@@ -202,6 +245,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          owner_id?: string | null
           product_id: string
           quantity: number
           unit_cost: number
@@ -210,6 +254,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          owner_id?: string | null
           product_id?: string
           quantity?: number
           unit_cost?: number
@@ -272,6 +317,7 @@ export type Database = {
           created_by: string | null
           id: string
           note: string | null
+          owner_id: string | null
           paid_at: string
         }
         Insert: {
@@ -280,6 +326,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           note?: string | null
+          owner_id?: string | null
           paid_at?: string
         }
         Update: {
@@ -288,6 +335,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           note?: string | null
+          owner_id?: string | null
           paid_at?: string
         }
         Relationships: []
@@ -315,6 +363,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      clone_catalog_for: { Args: { _user_id: string }; Returns: number }
       create_data_backup: { Args: never; Returns: string }
       has_role: {
         Args: {
