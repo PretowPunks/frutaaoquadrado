@@ -10,6 +10,7 @@ import { Plus, Pencil, Trash2, Download, Search, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { useSort, SortHeader } from "@/hooks/use-sort";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/_app/produtos")({ component: ProdutosPage });
 
