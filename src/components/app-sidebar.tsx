@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Package, ArrowDownToLine, ShoppingCart, Users, LogOut, Wallet } from "lucide-react";
+import { LayoutDashboard, Package, ArrowDownToLine, ShoppingCart, Users, LogOut, Wallet, UserCog } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +23,9 @@ const items = [
   { title: "Repasses", url: "/repasses", icon: Wallet },
   { title: "Clientes", url: "/clientes", icon: Users },
 ];
+
+const adminItems = [{ title: "Representantes", url: "/representantes", icon: UserCog }];
+
 
 export function AppSidebar() {
   const path = useRouterState({ select: (r) => r.location.pathname });
