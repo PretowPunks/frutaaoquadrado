@@ -62,6 +62,33 @@ export type Database = {
         }
         Relationships: []
       }
+      privacy_consents: {
+        Row: {
+          accepted_at: string
+          created_at: string
+          id: string
+          user_agent: string | null
+          user_id: string
+          version: string
+        }
+        Insert: {
+          accepted_at?: string
+          created_at?: string
+          id?: string
+          user_agent?: string | null
+          user_id?: string
+          version?: string
+        }
+        Update: {
+          accepted_at?: string
+          created_at?: string
+          id?: string
+          user_agent?: string | null
+          user_id?: string
+          version?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           cost_price: number
@@ -231,6 +258,47 @@ export type Database = {
           },
         ]
       }
+      shift_route_points: {
+        Row: {
+          accuracy: number | null
+          created_at: string
+          id: string
+          lat: number
+          lng: number
+          recorded_at: string
+          shift_id: string
+          user_id: string
+        }
+        Insert: {
+          accuracy?: number | null
+          created_at?: string
+          id?: string
+          lat: number
+          lng: number
+          recorded_at?: string
+          shift_id: string
+          user_id?: string
+        }
+        Update: {
+          accuracy?: number | null
+          created_at?: string
+          id?: string
+          lat?: number
+          lng?: number
+          recorded_at?: string
+          shift_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_route_points_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "work_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_entries: {
         Row: {
           created_at: string
@@ -263,6 +331,50 @@ export type Database = {
           {
             foreignKeyName: "stock_entries_product_id_fkey"
             columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_transfers: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          note: string | null
+          product_name: string
+          quantity: number
+          source_product_id: string
+          to_user_id: string
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          product_name: string
+          quantity: number
+          source_product_id: string
+          to_user_id: string
+          unit_cost?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          product_name?: string
+          quantity?: number
+          source_product_id?: string
+          to_user_id?: string
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_transfers_source_product_id_fkey"
+            columns: ["source_product_id"]
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
@@ -354,6 +466,39 @@ export type Database = {
         Update: {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      work_shifts: {
+        Row: {
+          created_at: string
+          ended_at: string | null
+          id: string
+          note: string | null
+          start_city: string | null
+          started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          note?: string | null
+          start_city?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          note?: string | null
+          start_city?: string | null
+          started_at?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
