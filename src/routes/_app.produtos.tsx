@@ -10,6 +10,7 @@ import { Plus, Pencil, Trash2, Download, Search, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { useSort, SortHeader } from "@/hooks/use-sort";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/_app/produtos")({ component: ProdutosPage });
 
@@ -23,6 +24,7 @@ type Product = {
 };
 
 function ProdutosPage() {
+  const { isAdmin, user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [editing, setEditing] = useState<Product | null>(null);
   const [open, setOpen] = useState(false);
@@ -33,7 +35,10 @@ function ProdutosPage() {
   const [openReplenish, setOpenReplenish] = useState(false);
 
   const load = async () => {
-    const { data } = await supabase.from("products").select("*").order("name");
+    // Matriz gerencia o catálogo modelo (owner_id nulo); representante, o próprio catálogo.
+    let query = supabase.from("products").select("*").order("name");
+    query = isAdmin ? query.is("owner_id", null) : query.eq("owner_id", user?.id ?? "");
+    const { data } = await query;
     setProducts((data ?? []) as Product[]);
     const since = new Date(Date.now() - windowDays * 86400000).toISOString();
     const { data: s } = await supabase
@@ -46,7 +51,7 @@ function ProdutosPage() {
     }
     setSalesByProduct(map);
   };
-  useEffect(() => { load(); }, [windowDays]);
+  useEffect(() => { load(); }, [windowDays, isAdmin, user?.id]);
 
   const save = async (form: Omit<Product, "id" | "stock_quantity"> & { id?: string }) => {
     if (form.id) {
@@ -60,12 +65,14 @@ function ProdutosPage() {
       const { error } = await supabase.from("products").insert({
         name: form.name, cost_price: form.cost_price, sale_price: form.sale_price,
         low_stock_threshold: form.low_stock_threshold,
+        owner_id: isAdmin ? null : user?.id ?? null,
       });
       if (error) return toast.error(error.message);
       toast.success("Produto cadastrado");
     }
     setOpen(false); setEditing(null); load();
   };
+
 
   const remove = async (id: string) => {
     if (!confirm("Remover este produto?")) return;
