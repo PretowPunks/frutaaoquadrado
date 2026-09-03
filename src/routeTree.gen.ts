@@ -18,6 +18,7 @@ import { Route as AppEntradasRouteImport } from './routes/_app.entradas'
 import { Route as AppProdutosRouteImport } from './routes/_app.produtos'
 import { Route as AppRepassesRouteImport } from './routes/_app.repasses'
 import { Route as AppRepresentantesRouteImport } from './routes/_app.representantes'
+import { Route as AppRotasRouteImport } from './routes/_app.rotas'
 import { Route as AppTransferenciasRouteImport } from './routes/_app.transferencias'
 import { Route as AppVendasRouteImport } from './routes/_app.vendas'
 
@@ -65,6 +66,11 @@ const AppRepresentantesRoute = AppRepresentantesRouteImport.update({
   path: '/representantes',
   getParentRoute: () => AppRoute,
 } as any)
+const AppRotasRoute = AppRotasRouteImport.update({
+  id: '/rotas',
+  path: '/rotas',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTransferenciasRoute = AppTransferenciasRouteImport.update({
   id: '/transferencias',
   path: '/transferencias',
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/produtos': typeof AppProdutosRoute
   '/repasses': typeof AppRepassesRoute
   '/representantes': typeof AppRepresentantesRoute
+  '/rotas': typeof AppRotasRoute
   '/transferencias': typeof AppTransferenciasRoute
   '/vendas': typeof AppVendasRoute
 }
@@ -96,6 +103,7 @@ export interface FileRoutesByTo {
   '/produtos': typeof AppProdutosRoute
   '/repasses': typeof AppRepassesRoute
   '/representantes': typeof AppRepresentantesRoute
+  '/rotas': typeof AppRotasRoute
   '/transferencias': typeof AppTransferenciasRoute
   '/vendas': typeof AppVendasRoute
   '/': typeof AppIndexRoute
@@ -110,6 +118,7 @@ export interface FileRoutesById {
   '/_app/produtos': typeof AppProdutosRoute
   '/_app/repasses': typeof AppRepassesRoute
   '/_app/representantes': typeof AppRepresentantesRoute
+  '/_app/rotas': typeof AppRotasRoute
   '/_app/transferencias': typeof AppTransferenciasRoute
   '/_app/vendas': typeof AppVendasRoute
   '/_app/': typeof AppIndexRoute
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/produtos'
     | '/repasses'
     | '/representantes'
+    | '/rotas'
     | '/transferencias'
     | '/vendas'
   fileRoutesByTo: FileRoutesByTo
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/produtos'
     | '/repasses'
     | '/representantes'
+    | '/rotas'
     | '/transferencias'
     | '/vendas'
     | '/'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/_app/produtos'
     | '/_app/repasses'
     | '/_app/representantes'
+    | '/_app/rotas'
     | '/_app/transferencias'
     | '/_app/vendas'
     | '/_app/'
@@ -224,6 +236,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRepresentantesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/rotas': {
+      id: '/_app/rotas'
+      path: '/rotas'
+      fullPath: '/rotas'
+      preLoaderRoute: typeof AppRotasRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/transferencias': {
       id: '/_app/transferencias'
       path: '/transferencias'
@@ -248,6 +267,7 @@ interface AppRouteChildren {
   AppProdutosRoute: typeof AppProdutosRoute
   AppRepassesRoute: typeof AppRepassesRoute
   AppRepresentantesRoute: typeof AppRepresentantesRoute
+  AppRotasRoute: typeof AppRotasRoute
   AppTransferenciasRoute: typeof AppTransferenciasRoute
   AppVendasRoute: typeof AppVendasRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -260,6 +280,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppProdutosRoute: AppProdutosRoute,
   AppRepassesRoute: AppRepassesRoute,
   AppRepresentantesRoute: AppRepresentantesRoute,
+  AppRotasRoute: AppRotasRoute,
   AppTransferenciasRoute: AppTransferenciasRoute,
   AppVendasRoute: AppVendasRoute,
   AppIndexRoute: AppIndexRoute,
