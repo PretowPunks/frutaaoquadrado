@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppCampoRouteImport } from './routes/_app.campo'
 import { Route as AppClientesRouteImport } from './routes/_app.clientes'
 import { Route as AppEntradasRouteImport } from './routes/_app.entradas'
 import { Route as AppProdutosRouteImport } from './routes/_app.produtos'
@@ -31,6 +32,11 @@ const LoginRoute = LoginRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCampoRoute = AppCampoRouteImport.update({
+  id: '/campo',
+  path: '/campo',
   getParentRoute: () => AppRoute,
 } as any)
 const AppClientesRoute = AppClientesRouteImport.update({
@@ -67,6 +73,7 @@ const AppVendasRoute = AppVendasRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/campo': typeof AppCampoRoute
   '/clientes': typeof AppClientesRoute
   '/entradas': typeof AppEntradasRoute
   '/produtos': typeof AppProdutosRoute
@@ -76,6 +83,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/campo': typeof AppCampoRoute
   '/clientes': typeof AppClientesRoute
   '/entradas': typeof AppEntradasRoute
   '/produtos': typeof AppProdutosRoute
@@ -88,6 +96,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/campo': typeof AppCampoRoute
   '/_app/clientes': typeof AppClientesRoute
   '/_app/entradas': typeof AppEntradasRoute
   '/_app/produtos': typeof AppProdutosRoute
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/campo'
     | '/clientes'
     | '/entradas'
     | '/produtos'
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/campo'
     | '/clientes'
     | '/entradas'
     | '/produtos'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/login'
+    | '/_app/campo'
     | '/_app/clientes'
     | '/_app/entradas'
     | '/_app/produtos'
@@ -156,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/campo': {
+      id: '/_app/campo'
+      path: '/campo'
+      fullPath: '/campo'
+      preLoaderRoute: typeof AppCampoRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/clientes': {
@@ -204,6 +223,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppCampoRoute: typeof AppCampoRoute
   AppClientesRoute: typeof AppClientesRoute
   AppEntradasRoute: typeof AppEntradasRoute
   AppProdutosRoute: typeof AppProdutosRoute
@@ -214,6 +234,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppCampoRoute: AppCampoRoute,
   AppClientesRoute: AppClientesRoute,
   AppEntradasRoute: AppEntradasRoute,
   AppProdutosRoute: AppProdutosRoute,
