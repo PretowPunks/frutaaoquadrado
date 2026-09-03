@@ -12,11 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppCampoRouteImport } from './routes/_app.campo'
 import { Route as AppClientesRouteImport } from './routes/_app.clientes'
 import { Route as AppEntradasRouteImport } from './routes/_app.entradas'
 import { Route as AppProdutosRouteImport } from './routes/_app.produtos'
 import { Route as AppRepassesRouteImport } from './routes/_app.repasses'
 import { Route as AppRepresentantesRouteImport } from './routes/_app.representantes'
+import { Route as AppRotasRouteImport } from './routes/_app.rotas'
+import { Route as AppTransferenciasRouteImport } from './routes/_app.transferencias'
 import { Route as AppVendasRouteImport } from './routes/_app.vendas'
 
 const AppRoute = AppRouteImport.update({
@@ -31,6 +34,11 @@ const LoginRoute = LoginRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCampoRoute = AppCampoRouteImport.update({
+  id: '/campo',
+  path: '/campo',
   getParentRoute: () => AppRoute,
 } as any)
 const AppClientesRoute = AppClientesRouteImport.update({
@@ -58,6 +66,16 @@ const AppRepresentantesRoute = AppRepresentantesRouteImport.update({
   path: '/representantes',
   getParentRoute: () => AppRoute,
 } as any)
+const AppRotasRoute = AppRotasRouteImport.update({
+  id: '/rotas',
+  path: '/rotas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTransferenciasRoute = AppTransferenciasRouteImport.update({
+  id: '/transferencias',
+  path: '/transferencias',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppVendasRoute = AppVendasRouteImport.update({
   id: '/vendas',
   path: '/vendas',
@@ -67,20 +85,26 @@ const AppVendasRoute = AppVendasRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/campo': typeof AppCampoRoute
   '/clientes': typeof AppClientesRoute
   '/entradas': typeof AppEntradasRoute
   '/produtos': typeof AppProdutosRoute
   '/repasses': typeof AppRepassesRoute
   '/representantes': typeof AppRepresentantesRoute
+  '/rotas': typeof AppRotasRoute
+  '/transferencias': typeof AppTransferenciasRoute
   '/vendas': typeof AppVendasRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/campo': typeof AppCampoRoute
   '/clientes': typeof AppClientesRoute
   '/entradas': typeof AppEntradasRoute
   '/produtos': typeof AppProdutosRoute
   '/repasses': typeof AppRepassesRoute
   '/representantes': typeof AppRepresentantesRoute
+  '/rotas': typeof AppRotasRoute
+  '/transferencias': typeof AppTransferenciasRoute
   '/vendas': typeof AppVendasRoute
   '/': typeof AppIndexRoute
 }
@@ -88,11 +112,14 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/campo': typeof AppCampoRoute
   '/_app/clientes': typeof AppClientesRoute
   '/_app/entradas': typeof AppEntradasRoute
   '/_app/produtos': typeof AppProdutosRoute
   '/_app/repasses': typeof AppRepassesRoute
   '/_app/representantes': typeof AppRepresentantesRoute
+  '/_app/rotas': typeof AppRotasRoute
+  '/_app/transferencias': typeof AppTransferenciasRoute
   '/_app/vendas': typeof AppVendasRoute
   '/_app/': typeof AppIndexRoute
 }
@@ -101,31 +128,40 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/campo'
     | '/clientes'
     | '/entradas'
     | '/produtos'
     | '/repasses'
     | '/representantes'
+    | '/rotas'
+    | '/transferencias'
     | '/vendas'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/campo'
     | '/clientes'
     | '/entradas'
     | '/produtos'
     | '/repasses'
     | '/representantes'
+    | '/rotas'
+    | '/transferencias'
     | '/vendas'
     | '/'
   id:
     | '__root__'
     | '/_app'
     | '/login'
+    | '/_app/campo'
     | '/_app/clientes'
     | '/_app/entradas'
     | '/_app/produtos'
     | '/_app/repasses'
     | '/_app/representantes'
+    | '/_app/rotas'
+    | '/_app/transferencias'
     | '/_app/vendas'
     | '/_app/'
   fileRoutesById: FileRoutesById
@@ -156,6 +192,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/campo': {
+      id: '/_app/campo'
+      path: '/campo'
+      fullPath: '/campo'
+      preLoaderRoute: typeof AppCampoRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/clientes': {
@@ -193,6 +236,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRepresentantesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/rotas': {
+      id: '/_app/rotas'
+      path: '/rotas'
+      fullPath: '/rotas'
+      preLoaderRoute: typeof AppRotasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/transferencias': {
+      id: '/_app/transferencias'
+      path: '/transferencias'
+      fullPath: '/transferencias'
+      preLoaderRoute: typeof AppTransferenciasRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/vendas': {
       id: '/_app/vendas'
       path: '/vendas'
@@ -204,21 +261,27 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppCampoRoute: typeof AppCampoRoute
   AppClientesRoute: typeof AppClientesRoute
   AppEntradasRoute: typeof AppEntradasRoute
   AppProdutosRoute: typeof AppProdutosRoute
   AppRepassesRoute: typeof AppRepassesRoute
   AppRepresentantesRoute: typeof AppRepresentantesRoute
+  AppRotasRoute: typeof AppRotasRoute
+  AppTransferenciasRoute: typeof AppTransferenciasRoute
   AppVendasRoute: typeof AppVendasRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppCampoRoute: AppCampoRoute,
   AppClientesRoute: AppClientesRoute,
   AppEntradasRoute: AppEntradasRoute,
   AppProdutosRoute: AppProdutosRoute,
   AppRepassesRoute: AppRepassesRoute,
   AppRepresentantesRoute: AppRepresentantesRoute,
+  AppRotasRoute: AppRotasRoute,
+  AppTransferenciasRoute: AppTransferenciasRoute,
   AppVendasRoute: AppVendasRoute,
   AppIndexRoute: AppIndexRoute,
 }
