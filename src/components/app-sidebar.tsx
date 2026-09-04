@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Package, ArrowDownToLine, ShoppingCart, Users, LogOut, Wallet, UserCog } from "lucide-react";
+import { LayoutDashboard, Package, ArrowDownToLine, ShoppingCart, Users, LogOut, Wallet, UserCog, MapPin, Truck, MapPinned } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 
 const items = [
   { title: "Painel", url: "/", icon: LayoutDashboard },
+  { title: "Meu Expediente", url: "/campo", icon: MapPin },
   { title: "Produtos", url: "/produtos", icon: Package },
   { title: "Entradas", url: "/entradas", icon: ArrowDownToLine },
   { title: "Vendas", url: "/vendas", icon: ShoppingCart },
@@ -24,7 +25,12 @@ const items = [
   { title: "Clientes", url: "/clientes", icon: Users },
 ];
 
-const adminItems = [{ title: "Representantes", url: "/representantes", icon: UserCog }];
+const adminItems = [
+  { title: "Representantes", url: "/representantes", icon: UserCog },
+  { title: "Transferências", url: "/transferencias", icon: Truck },
+  { title: "Mapa de Rotas", url: "/rotas", icon: MapPinned },
+];
+
 
 
 export function AppSidebar() {
