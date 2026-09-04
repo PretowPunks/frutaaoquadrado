@@ -24,8 +24,8 @@ function Dashboard() {
     lastBackupAt: null as string | null,
   });
 
-  useEffect(() => {
-    (async () => {
+  const load = useCallback(async () => {
+    {
       const { data: products } = await supabase.from("products").select("*");
       const { data: sales } = await supabase.from("sales").select("*, products(name)");
       const { data: pays } = await (supabase as any)
