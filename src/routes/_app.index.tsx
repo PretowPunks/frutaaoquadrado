@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Package, AlertTriangle, TrendingUp, DollarSign, Wallet } from "lucide-react";
@@ -24,8 +24,8 @@ function Dashboard() {
     lastBackupAt: null as string | null,
   });
 
-  useEffect(() => {
-    (async () => {
+  const load = useCallback(async () => {
+    {
       const { data: products } = await supabase.from("products").select("*");
       const { data: sales } = await supabase.from("sales").select("*, products(name)");
       const { data: pays } = await (supabase as any)
@@ -74,8 +74,21 @@ function Dashboard() {
           .sort((a, b) => b.profit - a.profit),
         lastBackupAt: backups?.[0]?.created_at ?? null,
       });
-    })();
+    }
   }, []);
+
+  // Faturamento em tempo real: recarrega quando vendas ou estoque mudam na rua
+  useEffect(() => {
+    load();
+    const channel = supabase
+      .channel("painel-tempo-real")
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => load())
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [load]);
 
   return (
     <div className="space-y-6">
