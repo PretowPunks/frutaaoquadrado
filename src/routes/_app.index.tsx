@@ -74,8 +74,21 @@ function Dashboard() {
           .sort((a, b) => b.profit - a.profit),
         lastBackupAt: backups?.[0]?.created_at ?? null,
       });
-    })();
+    }
   }, []);
+
+  // Faturamento em tempo real: recarrega quando vendas ou estoque mudam na rua
+  useEffect(() => {
+    load();
+    const channel = supabase
+      .channel("painel-tempo-real")
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => load())
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [load]);
 
   return (
     <div className="space-y-6">
