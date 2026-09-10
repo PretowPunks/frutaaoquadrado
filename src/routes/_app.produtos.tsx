@@ -25,7 +25,7 @@ type Product = {
 };
 
 function ProdutosPage() {
-  const { isAdmin } = useAuth();
+  
   const { productOwner, ownerId, isMatriz, isViewingRep } = useScope();
   const [products, setProducts] = useState<Product[]>([]);
   const [editing, setEditing] = useState<Product | null>(null);
@@ -147,16 +147,23 @@ function ProdutosPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Produtos</h2>
+        <div>
+          <h2 className="text-2xl font-bold">Produtos</h2>
+          <p className="text-sm text-muted-foreground">
+            {isMatriz ? "Estoque da matriz" : isViewingRep ? "Estoque do representante" : "Meu estoque"}
+          </p>
+        </div>
         <div className="flex gap-2">
         <Button variant="outline" onClick={() => setOpenReplenish(true)}><Sparkles className="h-4 w-4 mr-2" /> Reposição Inteligente</Button>
         <Button variant="outline" onClick={exportStock}><Download className="h-4 w-4 mr-2" /> Exportar Estoque</Button>
+        {!isViewingRep && (
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Novo Produto</Button>
           </DialogTrigger>
           <ProductDialog initial={editing} onSave={save} />
         </Dialog>
+        )}
         </div>
       </div>
       <div className="relative max-w-md">
