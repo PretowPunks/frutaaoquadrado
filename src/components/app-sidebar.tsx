@@ -37,6 +37,10 @@ const adminItems = [
 export function AppSidebar() {
   const path = useRouterState({ select: (r) => r.location.pathname });
   const { user, isAdmin, signOut } = useAuth();
+  const items = isAdmin
+    ? [...baseItems.slice(0, 3), entradasItem, ...baseItems.slice(3)]
+    : baseItems;
+
 
   return (
     <Sidebar collapsible="icon">
