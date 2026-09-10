@@ -11,6 +11,7 @@ import { fmtBRL } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Search, Plus, X } from "lucide-react";
 import { useSort, SortHeader } from "@/hooks/use-sort";
+import { useScope, scopeProducts } from "@/hooks/use-scope";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -40,13 +41,13 @@ function VendasPage() {
 
   const load = async () => {
     const [{ data: p }, { data: c }, { data: s }] = await Promise.all([
-      supabase.from("products").select("*").order("name"),
-      supabase.from("customers").select("*").order("name"),
-      supabase.from("sales").select("*, products(name), customers(name)").order("created_at", { ascending: false }).limit(500),
+      scopeProducts(supabase.from("products").select("*").order("name") as any, productOwner),
+      supabase.from("customers").select("*").eq("owner_id", ownerId).order("name"),
+      supabase.from("sales").select("*, products(name), customers(name)").eq("owner_id", ownerId).order("created_at", { ascending: false }).limit(500),
     ]);
     setProducts(p ?? []); setCustomers(c ?? []); setSales(s ?? []);
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (ownerId) load(); }, [ownerId, productOwner]);
 
   const updateItem = (idx: number, patch: Partial<CartItem>) => {
     setCart((c) => c.map((it, i) => {
