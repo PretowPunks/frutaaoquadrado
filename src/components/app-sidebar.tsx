@@ -15,15 +15,16 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 
-const items = [
+const baseItems = [
   { title: "Painel", url: "/", icon: LayoutDashboard },
   { title: "Meu Expediente", url: "/campo", icon: MapPin },
   { title: "Produtos", url: "/produtos", icon: Package },
-  { title: "Entradas", url: "/entradas", icon: ArrowDownToLine },
   { title: "Vendas", url: "/vendas", icon: ShoppingCart },
   { title: "Repasses", url: "/repasses", icon: Wallet },
   { title: "Clientes", url: "/clientes", icon: Users },
 ];
+
+const entradasItem = { title: "Entradas", url: "/entradas", icon: ArrowDownToLine };
 
 const adminItems = [
   { title: "Representantes", url: "/representantes", icon: UserCog },

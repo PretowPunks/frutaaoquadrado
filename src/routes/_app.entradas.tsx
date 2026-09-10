@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { Search, Trash2, Plus, X } from "lucide-react";
 import { useSort, SortHeader } from "@/hooks/use-sort";
+import { useAuth } from "@/hooks/use-auth";
+import { useScope } from "@/hooks/use-scope";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
