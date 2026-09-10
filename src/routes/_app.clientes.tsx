@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { useSort, SortHeader } from "@/hooks/use-sort";
+import { useScope } from "@/hooks/use-scope";
 import { PrintPortal } from "@/components/print-portal";
 import { OrderCardDoc } from "@/components/print-docs";
 import { Printer, Copy, FileText } from "lucide-react";
@@ -19,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 export const Route = createFileRoute("/_app/clientes")({ component: ClientesPage });
 
 function ClientesPage() {
+  const { ownerId, isViewingRep } = useScope();
   const [customers, setCustomers] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<any | null>(null);
@@ -29,10 +31,10 @@ function ClientesPage() {
   const [reportOpen, setReportOpen] = useState(false);
 
   const load = async () => {
-    const { data } = await supabase.from("customers").select("*").order("name");
+    const { data } = await supabase.from("customers").select("*").eq("owner_id", ownerId).order("name");
     setCustomers(data ?? []);
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (ownerId) { setSelected(null); load(); } }, [ownerId]);
 
   useEffect(() => {
     if (!selected) { setHistory([]); return; }
