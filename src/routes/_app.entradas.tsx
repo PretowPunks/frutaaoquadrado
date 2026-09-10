@@ -15,9 +15,29 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-export const Route = createFileRoute("/_app/entradas")({ component: EntradasPage });
+export const Route = createFileRoute("/_app/entradas")({ component: EntradasGate });
 
 type CartItem = { product_id: string; quantity: number; unit_cost: number };
+
+function EntradasGate() {
+  const { isAdmin } = useAuth();
+  const { isViewingRep } = useScope();
+  if (!isAdmin) {
+    return (
+      <Card className="p-8 text-center text-muted-foreground">
+        As entradas de mercadoria são registradas pela matriz. Seu estoque é abastecido pelas transferências recebidas.
+      </Card>
+    );
+  }
+  if (isViewingRep) {
+    return (
+      <Card className="p-8 text-center text-muted-foreground">
+        O estoque do representante é abastecido apenas por transferências da matriz — ele não registra entradas.
+      </Card>
+    );
+  }
+  return <EntradasPage />;
+}
 
 function EntradasPage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -26,10 +46,14 @@ function EntradasPage() {
   const [q, setQ] = useState("");
 
   const load = async () => {
-    const { data: p } = await supabase.from("products").select("*").order("name");
+    // Entradas sempre integram o estoque da matriz (owner_id nulo)
+    const { data: p } = await supabase.from("products").select("*").is("owner_id", null).order("name");
     setProducts(p ?? []);
+    const { data: u } = await supabase.auth.getUser();
     const { data: e } = await supabase
-      .from("stock_entries").select("*, products(name)").order("created_at", { ascending: false }).limit(50);
+      .from("stock_entries").select("*, products(name)")
+      .eq("owner_id", u.user?.id ?? "")
+      .order("created_at", { ascending: false }).limit(50);
     setEntries(e ?? []);
   };
   useEffect(() => { load(); }, []);

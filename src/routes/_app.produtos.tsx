@@ -191,8 +191,12 @@ function ProdutosPage() {
                 <td className={"p-3 text-right font-semibold " + (p.stock_quantity <= p.low_stock_threshold ? "text-destructive" : "")}>{p.stock_quantity}</td>
                 <td className="p-3 text-right">{p.low_stock_threshold}</td>
                 <td className="p-3 text-right space-x-1">
-                  <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => remove(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  {!isViewingRep && (
+                    <>
+                      <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => remove(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
