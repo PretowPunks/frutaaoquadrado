@@ -123,6 +123,7 @@ function ClientesPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Clientes</h2>
+        {!isViewingRep && (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" /> Novo Cliente</Button></DialogTrigger>
           <DialogContent>
@@ -135,6 +136,7 @@ function ClientesPage() {
             <DialogFooter><Button onClick={create}>Salvar</Button></DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
