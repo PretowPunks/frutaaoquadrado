@@ -53,8 +53,9 @@ function ClientesPage() {
   }, { key: "created_at", dir: "desc" });
 
   const create = async () => {
+    if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
     if (!name.trim()) return toast.error("Nome obrigatório");
-    const { error } = await supabase.from("customers").insert({ name, phone, address });
+    const { error } = await supabase.from("customers").insert({ name, phone, address, owner_id: ownerId });
     if (error) return toast.error(error.message);
     toast.success("Cliente cadastrado");
     setName(""); setPhone(""); setAddress(""); setOpen(false); load();
