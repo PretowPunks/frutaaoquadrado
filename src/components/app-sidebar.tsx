@@ -15,15 +15,16 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 
-const items = [
+const baseItems = [
   { title: "Painel", url: "/", icon: LayoutDashboard },
   { title: "Meu Expediente", url: "/campo", icon: MapPin },
   { title: "Produtos", url: "/produtos", icon: Package },
-  { title: "Entradas", url: "/entradas", icon: ArrowDownToLine },
   { title: "Vendas", url: "/vendas", icon: ShoppingCart },
   { title: "Repasses", url: "/repasses", icon: Wallet },
   { title: "Clientes", url: "/clientes", icon: Users },
 ];
+
+const entradasItem = { title: "Entradas", url: "/entradas", icon: ArrowDownToLine };
 
 const adminItems = [
   { title: "Representantes", url: "/representantes", icon: UserCog },
@@ -36,6 +37,10 @@ const adminItems = [
 export function AppSidebar() {
   const path = useRouterState({ select: (r) => r.location.pathname });
   const { user, isAdmin, signOut } = useAuth();
+  const items = isAdmin
+    ? [...baseItems.slice(0, 3), entradasItem, ...baseItems.slice(3)]
+    : baseItems;
+
 
   return (
     <Sidebar collapsible="icon">

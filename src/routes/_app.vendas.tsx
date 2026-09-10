@@ -11,6 +11,7 @@ import { fmtBRL } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Search, Plus, X } from "lucide-react";
 import { useSort, SortHeader } from "@/hooks/use-sort";
+import { useScope, scopeProducts } from "@/hooks/use-scope";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/_app/vendas")({ component: VendasPage });
 type CartItem = { product_id: string; quantity: number; unit_sale_price: number };
 
 function VendasPage() {
+  const { productOwner, ownerId, isMatriz, isViewingRep } = useScope();
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [sales, setSales] = useState<any[]>([]);
@@ -39,13 +41,13 @@ function VendasPage() {
 
   const load = async () => {
     const [{ data: p }, { data: c }, { data: s }] = await Promise.all([
-      supabase.from("products").select("*").order("name"),
-      supabase.from("customers").select("*").order("name"),
-      supabase.from("sales").select("*, products(name), customers(name)").order("created_at", { ascending: false }).limit(500),
+      scopeProducts(supabase.from("products").select("*").order("name") as any, productOwner),
+      supabase.from("customers").select("*").eq("owner_id", ownerId).order("name"),
+      supabase.from("sales").select("*, products(name), customers(name)").eq("owner_id", ownerId).order("created_at", { ascending: false }).limit(500),
     ]);
     setProducts(p ?? []); setCustomers(c ?? []); setSales(s ?? []);
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (ownerId) load(); }, [ownerId, productOwner]);
 
   const updateItem = (idx: number, patch: Partial<CartItem>) => {
     setCart((c) => c.map((it, i) => {
@@ -63,6 +65,7 @@ function VendasPage() {
   const cartTotal = cart.reduce((a, it) => a + Number(it.unit_sale_price) * Number(it.quantity), 0);
 
   const submit = async () => {
+    if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
     if (status === "scheduled" && !deliveryDate) return toast.error("Informe a data de entrega");
     if (paymentMethod === "boleto" && !boletoDue) return toast.error("Informe o vencimento do boleto");
     if (cart.length === 0) return toast.error("Adicione ao menos um produto");
@@ -88,6 +91,7 @@ function VendasPage() {
       boleto_due_date: paymentMethod === "boleto" ? boletoDue : null,
       delivery_date: status === "scheduled" ? deliveryDate : null,
       created_by: u.user?.id,
+      owner_id: u.user?.id,
     }));
     const { error } = await supabase.from("sales").insert(payload as any);
     if (error) return toast.error(error.message);
@@ -182,7 +186,16 @@ function VendasPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Vendas / Saídas</h2>
+      <div>
+        <h2 className="text-2xl font-bold">Vendas / Saídas</h2>
+        <p className="text-sm text-muted-foreground">
+          {isMatriz
+            ? "As vendas da matriz dão baixa direto no estoque da matriz."
+            : isViewingRep
+              ? "Vendas do representante — somente consulta."
+              : "Vendas dão baixa no seu estoque."}
+        </p>
+      </div>
       <Card className="p-5 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="md:col-span-1">

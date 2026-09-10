@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { useSort, SortHeader } from "@/hooks/use-sort";
+import { useScope } from "@/hooks/use-scope";
 import { PrintPortal } from "@/components/print-portal";
 import { OrderCardDoc } from "@/components/print-docs";
 import { Printer, Copy, FileText } from "lucide-react";
@@ -19,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 export const Route = createFileRoute("/_app/clientes")({ component: ClientesPage });
 
 function ClientesPage() {
+  const { ownerId, isViewingRep } = useScope();
   const [customers, setCustomers] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<any | null>(null);
@@ -29,10 +31,10 @@ function ClientesPage() {
   const [reportOpen, setReportOpen] = useState(false);
 
   const load = async () => {
-    const { data } = await supabase.from("customers").select("*").order("name");
+    const { data } = await supabase.from("customers").select("*").eq("owner_id", ownerId).order("name");
     setCustomers(data ?? []);
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (ownerId) { setSelected(null); load(); } }, [ownerId]);
 
   useEffect(() => {
     if (!selected) { setHistory([]); return; }
@@ -51,8 +53,9 @@ function ClientesPage() {
   }, { key: "created_at", dir: "desc" });
 
   const create = async () => {
+    if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
     if (!name.trim()) return toast.error("Nome obrigatório");
-    const { error } = await supabase.from("customers").insert({ name, phone, address });
+    const { error } = await supabase.from("customers").insert({ name, phone, address, owner_id: ownerId });
     if (error) return toast.error(error.message);
     toast.success("Cliente cadastrado");
     setName(""); setPhone(""); setAddress(""); setOpen(false); load();
@@ -120,6 +123,7 @@ function ClientesPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Clientes</h2>
+        {!isViewingRep && (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-2" /> Novo Cliente</Button></DialogTrigger>
           <DialogContent>
@@ -132,6 +136,7 @@ function ClientesPage() {
             <DialogFooter><Button onClick={create}>Salvar</Button></DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

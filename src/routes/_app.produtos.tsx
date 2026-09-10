@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { useSort, SortHeader } from "@/hooks/use-sort";
 import { useAuth } from "@/hooks/use-auth";
+import { useScope, scopeProducts } from "@/hooks/use-scope";
 
 export const Route = createFileRoute("/_app/produtos")({ component: ProdutosPage });
 
@@ -24,7 +25,8 @@ type Product = {
 };
 
 function ProdutosPage() {
-  const { isAdmin, user } = useAuth();
+  
+  const { productOwner, ownerId, isMatriz, isViewingRep } = useScope();
   const [products, setProducts] = useState<Product[]>([]);
   const [editing, setEditing] = useState<Product | null>(null);
   const [open, setOpen] = useState(false);
@@ -35,15 +37,17 @@ function ProdutosPage() {
   const [openReplenish, setOpenReplenish] = useState(false);
 
   const load = async () => {
-    // Matriz gerencia o catálogo modelo (owner_id nulo); representante, o próprio catálogo.
-    let query = supabase.from("products").select("*").order("name");
-    query = isAdmin ? query.is("owner_id", null) : query.eq("owner_id", user?.id ?? "");
-    const { data } = await query;
+    // Matriz gerencia o estoque da matriz (owner_id nulo); representante, o próprio estoque.
+    const { data } = await scopeProducts(
+      supabase.from("products").select("*").order("name") as any,
+      productOwner,
+    );
     setProducts((data ?? []) as Product[]);
     const since = new Date(Date.now() - windowDays * 86400000).toISOString();
     const { data: s } = await supabase
       .from("sales")
       .select("product_id, quantity, created_at")
+      .eq("owner_id", ownerId)
       .gte("created_at", since);
     const map: Record<string, number> = {};
     for (const r of (s ?? []) as any[]) {
@@ -51,7 +55,7 @@ function ProdutosPage() {
     }
     setSalesByProduct(map);
   };
-  useEffect(() => { load(); }, [windowDays, isAdmin, user?.id]);
+  useEffect(() => { if (ownerId) load(); }, [windowDays, productOwner, ownerId]);
 
   const save = async (form: Omit<Product, "id" | "stock_quantity"> & { id?: string }) => {
     if (form.id) {
@@ -65,13 +69,14 @@ function ProdutosPage() {
       const { error } = await supabase.from("products").insert({
         name: form.name, cost_price: form.cost_price, sale_price: form.sale_price,
         low_stock_threshold: form.low_stock_threshold,
-        owner_id: isAdmin ? null : user?.id ?? null,
+        owner_id: isMatriz ? null : ownerId,
       });
       if (error) return toast.error(error.message);
       toast.success("Produto cadastrado");
     }
     setOpen(false); setEditing(null); load();
   };
+
 
 
   const remove = async (id: string) => {
@@ -142,16 +147,23 @@ function ProdutosPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Produtos</h2>
+        <div>
+          <h2 className="text-2xl font-bold">Produtos</h2>
+          <p className="text-sm text-muted-foreground">
+            {isMatriz ? "Estoque da matriz" : isViewingRep ? "Estoque do representante" : "Meu estoque"}
+          </p>
+        </div>
         <div className="flex gap-2">
         <Button variant="outline" onClick={() => setOpenReplenish(true)}><Sparkles className="h-4 w-4 mr-2" /> Reposição Inteligente</Button>
         <Button variant="outline" onClick={exportStock}><Download className="h-4 w-4 mr-2" /> Exportar Estoque</Button>
+        {!isViewingRep && (
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Novo Produto</Button>
           </DialogTrigger>
           <ProductDialog initial={editing} onSave={save} />
         </Dialog>
+        )}
         </div>
       </div>
       <div className="relative max-w-md">
@@ -179,8 +191,12 @@ function ProdutosPage() {
                 <td className={"p-3 text-right font-semibold " + (p.stock_quantity <= p.low_stock_threshold ? "text-destructive" : "")}>{p.stock_quantity}</td>
                 <td className="p-3 text-right">{p.low_stock_threshold}</td>
                 <td className="p-3 text-right space-x-1">
-                  <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => remove(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  {!isViewingRep && (
+                    <>
+                      <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => remove(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}

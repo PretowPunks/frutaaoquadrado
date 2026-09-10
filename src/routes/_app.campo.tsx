@@ -62,13 +62,15 @@ function CampoPage() {
 
   const loadProducts = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
+    // A matriz vende direto do estoque da matriz (owner_id nulo); o representante, do estoque móvel dele.
+    const base = supabase
       .from("products")
       .select("id, name, sale_price, cost_price, stock_quantity")
-      .eq("owner_id", user.id)
       .order("name");
+    const { data } = await (isAdmin ? base.is("owner_id", null) : base.eq("owner_id", user.id));
     setProducts((data ?? []) as Product[]);
-  }, [user]);
+  }, [user, isAdmin]);
+
 
   useEffect(() => {
     if (!user) return;
