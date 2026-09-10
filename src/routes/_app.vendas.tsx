@@ -24,6 +24,7 @@ export const Route = createFileRoute("/_app/vendas")({ component: VendasPage });
 type CartItem = { product_id: string; quantity: number; unit_sale_price: number };
 
 function VendasPage() {
+  const { productOwner, ownerId, isMatriz, isViewingRep } = useScope();
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [sales, setSales] = useState<any[]>([]);
