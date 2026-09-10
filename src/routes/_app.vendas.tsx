@@ -65,6 +65,7 @@ function VendasPage() {
   const cartTotal = cart.reduce((a, it) => a + Number(it.unit_sale_price) * Number(it.quantity), 0);
 
   const submit = async () => {
+    if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
     if (status === "scheduled" && !deliveryDate) return toast.error("Informe a data de entrega");
     if (paymentMethod === "boleto" && !boletoDue) return toast.error("Informe o vencimento do boleto");
     if (cart.length === 0) return toast.error("Adicione ao menos um produto");
@@ -90,6 +91,7 @@ function VendasPage() {
       boleto_due_date: paymentMethod === "boleto" ? boletoDue : null,
       delivery_date: status === "scheduled" ? deliveryDate : null,
       created_by: u.user?.id,
+      owner_id: u.user?.id,
     }));
     const { error } = await supabase.from("sales").insert(payload as any);
     if (error) return toast.error(error.message);
