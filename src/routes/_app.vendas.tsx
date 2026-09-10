@@ -186,7 +186,16 @@ function VendasPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Vendas / Saídas</h2>
+      <div>
+        <h2 className="text-2xl font-bold">Vendas / Saídas</h2>
+        <p className="text-sm text-muted-foreground">
+          {isMatriz
+            ? "As vendas da matriz dão baixa direto no estoque da matriz."
+            : isViewingRep
+              ? "Vendas do representante — somente consulta."
+              : "Vendas dão baixa no seu estoque."}
+        </p>
+      </div>
       <Card className="p-5 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="md:col-span-1">
