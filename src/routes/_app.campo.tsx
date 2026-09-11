@@ -40,7 +40,7 @@ type Shift = { id: string; started_at: string; ended_at: string | null; start_ci
 type Product = { id: string; name: string; sale_price: number; cost_price: number; stock_quantity: number };
 
 function CampoPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [consent, setConsent] = useState<boolean | null>(null);
   const [accept, setAccept] = useState(false);
   const [shift, setShift] = useState<Shift | null>(null);
@@ -92,7 +92,11 @@ function CampoPage() {
         .maybeSingle();
       setShift((s as Shift) ?? null);
 
-      const { data: cust } = await supabase.from("customers").select("id, name").order("name");
+      const { data: cust } = await supabase
+        .from("customers")
+        .select("id, name")
+        .eq("owner_id", user.id)
+        .order("name");
       setCustomers((cust ?? []) as { id: string; name: string }[]);
     })();
     loadProducts();
