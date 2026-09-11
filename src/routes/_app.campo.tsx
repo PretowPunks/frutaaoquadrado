@@ -227,7 +227,11 @@ function CampoPage() {
     <div className="space-y-5 max-w-2xl mx-auto pb-10">
       <div>
         <h2 className="text-2xl font-bold">Meu Expediente</h2>
-        <p className="text-sm text-muted-foreground">Painel de rua — jornada, estoque móvel e venda rápida.</p>
+        <p className="text-sm text-muted-foreground">
+          {isAdmin
+            ? "Jornada e venda rápida da matriz — as vendas saem do estoque da matriz."
+            : "Painel de rua — jornada, estoque móvel e venda rápida."}
+        </p>
       </div>
 
       <Card className="p-5 space-y-4">
