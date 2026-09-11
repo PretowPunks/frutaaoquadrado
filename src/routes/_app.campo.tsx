@@ -40,7 +40,7 @@ type Shift = { id: string; started_at: string; ended_at: string | null; start_ci
 type Product = { id: string; name: string; sale_price: number; cost_price: number; stock_quantity: number };
 
 function CampoPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [consent, setConsent] = useState<boolean | null>(null);
   const [accept, setAccept] = useState(false);
   const [shift, setShift] = useState<Shift | null>(null);
@@ -92,7 +92,11 @@ function CampoPage() {
         .maybeSingle();
       setShift((s as Shift) ?? null);
 
-      const { data: cust } = await supabase.from("customers").select("id, name").order("name");
+      const { data: cust } = await supabase
+        .from("customers")
+        .select("id, name")
+        .eq("owner_id", user.id)
+        .order("name");
       setCustomers((cust ?? []) as { id: string; name: string }[]);
     })();
     loadProducts();
@@ -192,7 +196,9 @@ function CampoPage() {
     if (!Number.isFinite(quantity) || quantity <= 0) return toast.error("Quantidade inválida");
     if (!Number.isFinite(unit) || unit < 0) return toast.error("Valor inválido");
     if (quantity > selected.stock_quantity)
-      return toast.error(`Estoque móvel insuficiente (${selected.stock_quantity} un.)`);
+      return toast.error(
+        `${isAdmin ? "Estoque da matriz" : "Estoque móvel"} insuficiente (${selected.stock_quantity} un.)`,
+      );
 
     setSaving(true);
     const { error } = await supabase.from("sales").insert({
@@ -203,6 +209,7 @@ function CampoPage() {
       unit_cost: selected.cost_price,
       status,
       created_by: user?.id ?? null,
+      owner_id: user?.id ?? null,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
@@ -220,7 +227,11 @@ function CampoPage() {
     <div className="space-y-5 max-w-2xl mx-auto pb-10">
       <div>
         <h2 className="text-2xl font-bold">Meu Expediente</h2>
-        <p className="text-sm text-muted-foreground">Painel de rua — jornada, estoque móvel e venda rápida.</p>
+        <p className="text-sm text-muted-foreground">
+          {isAdmin
+            ? "Jornada e venda rápida da matriz — as vendas saem do estoque da matriz."
+            : "Painel de rua — jornada, estoque móvel e venda rápida."}
+        </p>
       </div>
 
       <Card className="p-5 space-y-4">
@@ -270,9 +281,11 @@ function CampoPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Snowflake className="h-5 w-5 text-primary" />
-            <span className="font-semibold">Estoque móvel</span>
+            <span className="font-semibold">{isAdmin ? "Estoque da matriz" : "Estoque móvel"}</span>
           </div>
-          <span className="text-sm text-muted-foreground">{stockUnits} un. no carro/freezer</span>
+          <span className="text-sm text-muted-foreground">
+            {stockUnits} un. {isAdmin ? "na matriz" : "no carro/freezer"}
+          </span>
         </div>
         <div className="relative">
           <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
@@ -289,7 +302,9 @@ function CampoPage() {
           ))}
           {filtered.length === 0 && (
             <li className="py-3 text-sm text-muted-foreground">
-              Nenhum item. Peça uma transferência de estoque à matriz.
+              {isAdmin
+                ? "Nenhum item no estoque da matriz. Registre uma entrada."
+                : "Nenhum item. Peça uma transferência de estoque à matriz."}
             </li>
           )}
         </ul>
