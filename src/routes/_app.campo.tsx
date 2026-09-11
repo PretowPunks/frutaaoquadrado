@@ -281,9 +281,11 @@ function CampoPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Snowflake className="h-5 w-5 text-primary" />
-            <span className="font-semibold">Estoque móvel</span>
+            <span className="font-semibold">{isAdmin ? "Estoque da matriz" : "Estoque móvel"}</span>
           </div>
-          <span className="text-sm text-muted-foreground">{stockUnits} un. no carro/freezer</span>
+          <span className="text-sm text-muted-foreground">
+            {stockUnits} un. {isAdmin ? "na matriz" : "no carro/freezer"}
+          </span>
         </div>
         <div className="relative">
           <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
@@ -300,7 +302,9 @@ function CampoPage() {
           ))}
           {filtered.length === 0 && (
             <li className="py-3 text-sm text-muted-foreground">
-              Nenhum item. Peça uma transferência de estoque à matriz.
+              {isAdmin
+                ? "Nenhum item no estoque da matriz. Registre uma entrada."
+                : "Nenhum item. Peça uma transferência de estoque à matriz."}
             </li>
           )}
         </ul>
