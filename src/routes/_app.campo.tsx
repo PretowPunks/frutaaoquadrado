@@ -196,7 +196,9 @@ function CampoPage() {
     if (!Number.isFinite(quantity) || quantity <= 0) return toast.error("Quantidade inválida");
     if (!Number.isFinite(unit) || unit < 0) return toast.error("Valor inválido");
     if (quantity > selected.stock_quantity)
-      return toast.error(`Estoque móvel insuficiente (${selected.stock_quantity} un.)`);
+      return toast.error(
+        `${isAdmin ? "Estoque da matriz" : "Estoque móvel"} insuficiente (${selected.stock_quantity} un.)`,
+      );
 
     setSaving(true);
     const { error } = await supabase.from("sales").insert({
@@ -207,6 +209,7 @@ function CampoPage() {
       unit_cost: selected.cost_price,
       status,
       created_by: user?.id ?? null,
+      owner_id: user?.id ?? null,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
