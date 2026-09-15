@@ -1,6 +1,13 @@
 import { fmtBRL } from "@/lib/format";
 
-type Item = { id?: string; product_name: string; quantity: number; unit_cost?: number; unit_price?: number; total: number };
+type Item = {
+  id?: string;
+  product_name: string;
+  quantity: number;
+  unit_cost?: number;
+  unit_price?: number;
+  total: number;
+};
 
 function DocHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
@@ -13,6 +20,56 @@ function DocHeader({ title, subtitle }: { title: string; subtitle?: string }) {
         <p className="font-semibold">{title}</p>
         {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
       </div>
+    </div>
+  );
+}
+
+export type RepresentativeTransferReceipt = {
+  id: string;
+  date: string;
+  representativeName: string;
+  profitAmount: number;
+  method: "Abatimento" | "PIX" | "Dinheiro";
+  updatedDebt: number;
+};
+
+/** Comprovante financeiro da matriz para o representante */
+export function RepresentativeTransferReceiptDoc({
+  receipt,
+}: {
+  receipt: RepresentativeTransferReceipt;
+}) {
+  return (
+    <div className="mx-auto w-full max-w-sm text-sm">
+      <DocHeader
+        title="Comprovante de Repasse"
+        subtitle={`Nº ${receipt.id.slice(0, 8).toUpperCase()}`}
+      />
+      <div className="border-y border-dashed py-3 space-y-2">
+        <div className="flex justify-between gap-4">
+          <span>Data</span>
+          <strong>{new Date(`${receipt.date}T12:00:00`).toLocaleDateString("pt-BR")}</strong>
+        </div>
+        <div className="flex justify-between gap-4">
+          <span>Representante</span>
+          <strong className="text-right">{receipt.representativeName}</strong>
+        </div>
+        <div className="flex justify-between gap-4">
+          <span>Valor do lucro</span>
+          <strong>{fmtBRL(receipt.profitAmount)}</strong>
+        </div>
+        <div className="flex justify-between gap-4">
+          <span>Forma de repasse</span>
+          <strong>{receipt.method}</strong>
+        </div>
+      </div>
+      <div className="flex justify-between gap-4 py-4 text-base">
+        <span className="font-semibold">Saldo devedor atualizado</span>
+        <strong>{fmtBRL(receipt.updatedDebt)}</strong>
+      </div>
+      <p className="border-t border-dashed pt-3 text-center text-xs text-muted-foreground">
+        Operação confirmada pela Matriz · Fruta²
+      </p>
     </div>
   );
 }
@@ -68,7 +125,9 @@ export function ReceiptDoc({
         </tbody>
         <tfoot className="bg-muted/50">
           <tr>
-            <td className="p-2 font-bold" colSpan={3}>TOTAL DO REPASSE</td>
+            <td className="p-2 font-bold" colSpan={3}>
+              TOTAL DO REPASSE
+            </td>
             <td className="p-2 text-right font-bold">{fmtBRL(payment.amount)}</td>
           </tr>
         </tfoot>
@@ -76,7 +135,9 @@ export function ReceiptDoc({
 
       {boletos && boletos.length > 0 && (
         <div className="mt-5">
-          <p className="font-semibold mb-1">Boletos pagos diretamente ao fornecedor (não incluídos no valor acima)</p>
+          <p className="font-semibold mb-1">
+            Boletos pagos diretamente ao fornecedor (não incluídos no valor acima)
+          </p>
           <table className="w-full border rounded">
             <thead className="bg-secondary text-secondary-foreground">
               <tr>
@@ -98,7 +159,9 @@ export function ReceiptDoc({
             </tbody>
             <tfoot className="bg-muted/50">
               <tr>
-                <td className="p-2 font-bold" colSpan={3}>TOTAL EM BOLETOS</td>
+                <td className="p-2 font-bold" colSpan={3}>
+                  TOTAL EM BOLETOS
+                </td>
                 <td className="p-2 text-right font-bold">{fmtBRL(boletoTotal)}</td>
               </tr>
             </tfoot>
@@ -143,7 +206,9 @@ export function BoletoReportDoc({ rows, periodLabel }: { rows: any[]; periodLabe
             <tr key={i} className="border-t">
               <td className="p-2">{r.product_name}</td>
               <td className="p-2">{r.customer_name ?? "—"}</td>
-              <td className="p-2">{r.due_date ? new Date(r.due_date + "T00:00:00").toLocaleDateString("pt-BR") : "—"}</td>
+              <td className="p-2">
+                {r.due_date ? new Date(r.due_date + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
+              </td>
               <td className="p-2">{new Date(r.paid_at).toLocaleDateString("pt-BR")}</td>
               <td className="p-2 text-right">{r.quantity}</td>
               <td className="p-2 text-right font-semibold">{fmtBRL(r.total)}</td>
@@ -152,7 +217,9 @@ export function BoletoReportDoc({ rows, periodLabel }: { rows: any[]; periodLabe
         </tbody>
         <tfoot className="bg-muted/50">
           <tr>
-            <td className="p-2 font-bold" colSpan={5}>TOTAL PAGO VIA BOLETO</td>
+            <td className="p-2 font-bold" colSpan={5}>
+              TOTAL PAGO VIA BOLETO
+            </td>
             <td className="p-2 text-right font-bold">{fmtBRL(total)}</td>
           </tr>
         </tfoot>
