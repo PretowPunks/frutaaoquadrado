@@ -57,7 +57,19 @@ function ProdutosPage() {
   useEffect(() => { if (ownerId) load(); }, [windowDays, productOwner, ownerId]);
 
   const save = async (form: Omit<Product, "id" | "stock_quantity"> & { id?: string }) => {
-    if (!isMatriz) return toast.error("O catálogo e os valores são administrados pela matriz.");
+    if (isViewingRep) return toast.error("A consulta do representante é somente leitura.");
+    if (!isMatriz) {
+      if (!form.id) return toast.error("Os produtos são cadastrados pela matriz através das transferências.");
+      const { error } = await supabase
+        .from("products")
+        .update({ sale_price: form.sale_price })
+        .eq("id", form.id)
+        .eq("owner_id", ownerId);
+      if (error) return toast.error(error.message);
+      toast.success("Preço de saída atualizado");
+      setOpen(false); setEditing(null); load();
+      return;
+    }
     if (form.id) {
       const { error } = await supabase.from("products").update({
         name: form.name, cost_price: form.cost_price, sale_price: form.sale_price,
@@ -156,12 +168,12 @@ function ProdutosPage() {
         <div className="flex gap-2">
         <Button variant="outline" onClick={() => setOpenReplenish(true)}><Sparkles className="h-4 w-4 mr-2" /> Reposição Inteligente</Button>
         <Button variant="outline" onClick={exportStock}><Download className="h-4 w-4 mr-2" /> Exportar Estoque</Button>
-         {isMatriz && (
+          {isMatriz && (
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Novo Produto</Button>
           </DialogTrigger>
-          <ProductDialog initial={editing} onSave={save} />
+           <ProductDialog initial={editing} onSave={save} isMatriz />
         </Dialog>
         )}
         </div>
@@ -191,10 +203,19 @@ function ProdutosPage() {
                 <td className={"p-3 text-right font-semibold " + (p.stock_quantity <= p.low_stock_threshold ? "text-destructive" : "")}>{p.stock_quantity}</td>
                 <td className="p-3 text-right">{p.low_stock_threshold}</td>
                 <td className="p-3 text-right space-x-1">
-                   {isMatriz && (
+                   {!isViewingRep && (
                     <>
-                      <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" onClick={() => remove(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                       {isMatriz ? (
+                         <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }} aria-label={`Editar ${p.name}`}><Pencil className="h-4 w-4" /></Button>
+                       ) : (
+                         <Dialog open={open && editing?.id === p.id} onOpenChange={(next) => { setOpen(next); if (!next) setEditing(null); }}>
+                           <DialogTrigger asChild>
+                             <Button size="icon" variant="ghost" onClick={() => setEditing(p)} aria-label={`Editar preço de saída de ${p.name}`}><Pencil className="h-4 w-4" /></Button>
+                           </DialogTrigger>
+                           <ProductDialog initial={editing} onSave={save} isMatriz={false} />
+                         </Dialog>
+                       )}
+                       {isMatriz && <Button size="icon" variant="ghost" onClick={() => remove(p.id)} aria-label={`Remover ${p.name}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                     </>
                   )}
                 </td>
@@ -260,9 +281,11 @@ function ProdutosPage() {
 function ProductDialog({
   initial,
   onSave,
+  isMatriz,
 }: {
   initial: Product | null;
   onSave: (p: any) => void;
+  isMatriz: boolean;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [cost, setCost] = useState(initial?.cost_price ?? 0);
@@ -279,15 +302,15 @@ function ProductDialog({
   return (
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>{initial ? "Editar Produto" : "Novo Produto"}</DialogTitle>
+        <DialogTitle>{isMatriz ? (initial ? "Editar Produto" : "Novo Produto") : "Editar preço de saída"}</DialogTitle>
       </DialogHeader>
       <div className="space-y-3">
-        <div><Label>Nome</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+        <div><Label>Nome</Label><Input value={name} onChange={(e) => setName(e.target.value)} disabled={!isMatriz} /></div>
         <div className="grid grid-cols-2 gap-3">
-          <div><Label>Valor de Entrada</Label><Input type="number" step="0.01" value={cost} onChange={(e) => setCost(Number(e.target.value))} /></div>
+          <div><Label>Valor de Entrada (Matriz)</Label><Input type="number" step="0.01" value={cost} onChange={(e) => setCost(Number(e.target.value))} disabled={!isMatriz} /></div>
           <div><Label>Valor de Saída</Label><Input type="number" step="0.01" value={sale} onChange={(e) => setSale(Number(e.target.value))} /></div>
         </div>
-        <div><Label>Alerta de baixo estoque (un.)</Label><Input type="number" value={low} onChange={(e) => setLow(Number(e.target.value))} /></div>
+        {isMatriz && <div><Label>Alerta de baixo estoque (un.)</Label><Input type="number" value={low} onChange={(e) => setLow(Number(e.target.value))} /></div>}
       </div>
       <DialogFooter>
         <Button onClick={() => onSave({ id: initial?.id, name, cost_price: cost, sale_price: sale, low_stock_threshold: low })}>Salvar</Button>
