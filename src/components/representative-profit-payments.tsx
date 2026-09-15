@@ -50,6 +50,9 @@ type ProfitPayment = {
   note: string | null;
 };
 
+type RepresentativeInvite = { accepted_user_id: string; name: string | null; email: string };
+type StockTransferDebt = { to_user_id: string; quantity: number; unit_cost: number };
+
 type TransferMethod = "Abatimento" | "PIX" | "Dinheiro";
 type TransferRecord = RepresentativeTransferReceipt & {
   repUserId: string;
@@ -115,6 +118,8 @@ export function RepresentativeProfitPayments() {
         .not("boleto_paid_at", "is", null)
         .neq("status", "scheduled")
         .order("created_at", { ascending: false }),
+      // A tabela será incorporada aos tipos gerados quando a simulação for persistida no banco.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any)
         .from("representative_profit_payments")
         .select("*")
@@ -127,7 +132,7 @@ export function RepresentativeProfitPayments() {
     ]);
     if (salesError) return toast.error(salesError.message);
     const repLabels: Record<string, string> = {};
-    for (const invite of (invites ?? []) as any[]) {
+    for (const invite of (invites ?? []) as RepresentativeInvite[]) {
       repLabels[invite.accepted_user_id] = invite.name || invite.email;
     }
     setLabels(repLabels);
@@ -138,7 +143,7 @@ export function RepresentativeProfitPayments() {
     );
     setPayments((paymentRows ?? []) as ProfitPayment[]);
     const initialDebts: Record<string, number> = {};
-    for (const transfer of (transfers ?? []) as any[]) {
+    for (const transfer of (transfers ?? []) as StockTransferDebt[]) {
       initialDebts[transfer.to_user_id] =
         (initialDebts[transfer.to_user_id] ?? 0) +
         Number(transfer.quantity) * Number(transfer.unit_cost);
