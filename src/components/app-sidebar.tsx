@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
+import logoAsset from "@/assets/fruta2-logo.png.asset.json";
 
 const baseItems = [
   { title: "Painel", url: "/", icon: LayoutDashboard },
@@ -45,7 +46,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
-        <h2 className="text-lg font-bold text-sidebar-foreground">Fruta²</h2>
+        <img src={logoAsset.url} alt="Fruta² — muito mais polpa" className="h-auto w-36 max-w-full" />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>

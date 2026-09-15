@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import logoAsset from "@/assets/fruta2-logo.png.asset.json";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -36,8 +37,9 @@ function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary to-background p-4">
       <Card className="p-8 w-full max-w-md space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-primary">Controle de Estoque</h1>
+        <div className="space-y-3 text-center">
+          <img src={logoAsset.url} alt="Fruta² — muito mais polpa" className="mx-auto h-auto w-64 max-w-full" />
+          <h1 className="text-xl font-bold text-foreground">Controle de Estoque</h1>
           <p className="text-muted-foreground">Entre para gerenciar seu negócio</p>
         </div>
         <Button onClick={handleGoogle} disabled={busy} className="w-full" size="lg">

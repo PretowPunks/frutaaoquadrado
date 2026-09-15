@@ -42,11 +42,11 @@ function AppLayout() {
   return (
     <ScopeProvider>
       <SidebarProvider>
-        <div className="min-h-screen flex w-full">
+        <div className="flex min-h-screen w-full min-w-0">
           <AppSidebar />
-          <div className="flex-1 flex flex-col">
+          <div className="flex min-w-0 flex-1 flex-col">
             <AppHeader />
-            <main className="flex-1 p-6 bg-muted/30">
+            <main className="min-w-0 flex-1 overflow-x-hidden bg-muted/30 p-3 sm:p-6">
               <Outlet />
             </main>
           </div>
@@ -62,14 +62,14 @@ function AppHeader() {
 
   return (
     <>
-      <header className="h-14 flex items-center border-b bg-background px-3 gap-3">
+      <header className="grid min-h-14 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-b bg-background px-3 py-2 sm:flex sm:gap-3">
         <SidebarTrigger />
-        <h1 className="font-semibold">Controle de Estoque</h1>
+        <h1 className="truncate font-semibold">Controle de Estoque</h1>
         {isAdmin && reps.length > 0 && (
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex min-w-0 items-center gap-2">
             <span className="text-xs text-muted-foreground hidden sm:inline">Visualizar:</span>
             <Select value={viewAs ?? "matriz"} onValueChange={(v) => setViewAs(v === "matriz" ? null : v)}>
-              <SelectTrigger className="h-8 w-56 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-10 w-[min(14rem,48vw)] text-xs sm:h-8 sm:w-56"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="matriz">Matriz (meus dados)</SelectItem>
                 {reps.map((r) => (
