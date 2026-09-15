@@ -28,7 +28,14 @@ function Dashboard() {
 
   const load = useCallback(async () => {
     {
-      const { data: products } = await scopeProducts(supabase.from("products").select("*") as any, productOwner);
+      const { data: productRows } = await scopeProducts(supabase.from("products").select("*") as any, productOwner);
+      const products = (productRows ?? []) as Array<{
+        id: string;
+        name: string;
+        cost_price: number;
+        stock_quantity: number;
+        low_stock_threshold: number;
+      }>;
       const salesQuery = supabase.from("sales").select("*, products(name)");
       const { data: sales } = await (isMatriz ? salesQuery : salesQuery.eq("owner_id", ownerId));
       const paysQuery = (supabase as any).from("supplier_payments").select("amount");
@@ -36,11 +43,11 @@ function Dashboard() {
       const { data: backups } = await (supabase as any)
         .from("data_backups").select("created_at").order("created_at", { ascending: false }).limit(1);
 
-      const stockValue = (products ?? []).reduce(
+      const stockValue = products.reduce(
         (s, p) => s + Number(p.cost_price) * p.stock_quantity,
         0,
       );
-      const lowStock = (products ?? [])
+      const lowStock = products
         .filter((p) => p.stock_quantity <= p.low_stock_threshold)
         .map((p) => ({ id: p.id, name: p.name, stock_quantity: p.stock_quantity }));
 

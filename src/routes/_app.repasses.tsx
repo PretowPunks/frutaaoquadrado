@@ -304,10 +304,12 @@ function SupplierRepasses({ ownerId, readOnly }: { ownerId: string; readOnly: bo
                           <Badge>Pago em {new Date(b.paid_at).toLocaleDateString("pt-BR")}</Badge>
                           {!readOnly && <Button size="sm" variant="ghost" onClick={() => confirmBoleto(b, false)}>Desfazer</Button>}
                         </div>
-                      ) : (
-                        !readOnly && <Button size="sm" variant="outline" onClick={() => confirmBoleto(b, true)}>
+                      ) : !readOnly ? (
+                        <Button size="sm" variant="outline" onClick={() => confirmBoleto(b, true)}>
                           Confirmar pagamento
                         </Button>
+                      ) : (
+                        <Badge variant="outline">Aguardando pagamento</Badge>
                       )}
                     </td>
                   </tr>
