@@ -38,7 +38,11 @@ function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary to-background p-4">
       <Card className="p-8 w-full max-w-md space-y-6">
         <div className="space-y-3 text-center">
-          <img src={logoAsset.url} alt="Fruta² — muito mais polpa" className="mx-auto h-auto w-64 max-w-full" />
+          <img
+            src={logoAsset.url}
+            alt="Fruta² — muito mais polpa"
+            className="mx-auto h-auto w-64 max-w-full"
+          />
           <h1 className="text-xl font-bold text-foreground">Controle de Estoque</h1>
           <p className="text-muted-foreground">Entre para gerenciar seu negócio</p>
         </div>

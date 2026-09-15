@@ -83,8 +83,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Fruta ² - Gerenciador" },
       { name: "twitter:description", content: "Sistema de controle de estoque, vendas e clientes" },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/j28vXcucndeVlKOwxJWLi38oApi2/social-images/social-1778779409801-insta_polpa.webp" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/j28vXcucndeVlKOwxJWLi38oApi2/social-images/social-1778779409801-insta_polpa.webp" },
+      {
+        property: "og:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/j28vXcucndeVlKOwxJWLi38oApi2/social-images/social-1778779409801-insta_polpa.webp",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/j28vXcucndeVlKOwxJWLi38oApi2/social-images/social-1778779409801-insta_polpa.webp",
+      },
     ],
     links: [
       {

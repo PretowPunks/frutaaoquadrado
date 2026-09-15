@@ -1,5 +1,17 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Package, ArrowDownToLine, ShoppingCart, Users, LogOut, Wallet, UserCog, MapPin, Truck, MapPinned } from "lucide-react";
+import {
+  LayoutDashboard,
+  Package,
+  ArrowDownToLine,
+  ShoppingCart,
+  Users,
+  LogOut,
+  Wallet,
+  UserCog,
+  MapPin,
+  Truck,
+  MapPinned,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -33,8 +45,6 @@ const adminItems = [
   { title: "Mapa de Rotas", url: "/rotas", icon: MapPinned },
 ];
 
-
-
 export function AppSidebar() {
   const path = useRouterState({ select: (r) => r.location.pathname });
   const { user, isAdmin, signOut } = useAuth();
@@ -42,11 +52,14 @@ export function AppSidebar() {
     ? [...baseItems.slice(0, 3), entradasItem, ...baseItems.slice(3)]
     : baseItems;
 
-
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
-        <img src={logoAsset.url} alt="Fruta² — muito mais polpa" className="h-auto w-36 max-w-full" />
+        <img
+          src={logoAsset.url}
+          alt="Fruta² — muito mais polpa"
+          className="h-auto w-36 max-w-full"
+        />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -89,7 +102,11 @@ export function AppSidebar() {
       <SidebarFooter className="p-3 space-y-2">
         <div className="text-xs text-sidebar-foreground/80 truncate">
           {user?.email}
-          {isAdmin && <span className="ml-1 px-1.5 py-0.5 rounded bg-sidebar-primary text-sidebar-primary-foreground text-[10px]">ADMIN</span>}
+          {isAdmin && (
+            <span className="ml-1 px-1.5 py-0.5 rounded bg-sidebar-primary text-sidebar-primary-foreground text-[10px]">
+              ADMIN
+            </span>
+          )}
         </div>
         <Button size="sm" variant="secondary" className="w-full justify-start" onClick={signOut}>
           <LogOut className="h-4 w-4 mr-2" /> Sair

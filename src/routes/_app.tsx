@@ -5,7 +5,13 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useEffect } from "react";
 
 export const Route = createFileRoute("/_app")({
@@ -21,7 +27,11 @@ function AppLayout() {
   }, [session, loading, navigate]);
 
   if (loading || !session || roleLoading) {
-    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+        Carregando...
+      </div>
+    );
   }
 
   if (!role) {
@@ -30,10 +40,13 @@ function AppLayout() {
         <Card className="p-8 max-w-md space-y-4 text-center">
           <h1 className="text-xl font-bold">Acesso não liberado</h1>
           <p className="text-sm text-muted-foreground">
-            A conta <strong>{user?.email}</strong> ainda não foi convidada como representante Fruta². Peça à matriz para
-            cadastrar este e-mail na lista de representantes e entre novamente.
+            A conta <strong>{user?.email}</strong> ainda não foi convidada como representante
+            Fruta². Peça à matriz para cadastrar este e-mail na lista de representantes e entre
+            novamente.
           </p>
-          <Button variant="secondary" onClick={signOut}>Sair</Button>
+          <Button variant="secondary" onClick={signOut}>
+            Sair
+          </Button>
         </Card>
       </div>
     );
@@ -68,24 +81,38 @@ function AppHeader() {
         {isAdmin && reps.length > 0 && (
           <div className="ml-auto flex min-w-0 items-center gap-2">
             <span className="text-xs text-muted-foreground hidden sm:inline">Visualizar:</span>
-            <Select value={viewAs ?? "matriz"} onValueChange={(v) => setViewAs(v === "matriz" ? null : v)}>
-              <SelectTrigger className="h-10 w-[min(14rem,48vw)] text-xs sm:h-8 sm:w-56"><SelectValue /></SelectTrigger>
+            <Select
+              value={viewAs ?? "matriz"}
+              onValueChange={(v) => setViewAs(v === "matriz" ? null : v)}
+            >
+              <SelectTrigger className="h-10 w-[min(14rem,48vw)] text-xs sm:h-8 sm:w-56">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="matriz">Matriz (meus dados)</SelectItem>
                 {reps.map((r) => (
-                  <SelectItem key={r.user_id} value={r.user_id}>{r.label}</SelectItem>
+                  <SelectItem key={r.user_id} value={r.user_id}>
+                    {r.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
         )}
         {!isAdmin && <span className="ml-auto text-xs text-muted-foreground">Representante</span>}
-        {isAdmin && reps.length === 0 && <span className="ml-auto text-xs text-muted-foreground">Matriz</span>}
+        {isAdmin && reps.length === 0 && (
+          <span className="ml-auto text-xs text-muted-foreground">Matriz</span>
+        )}
       </header>
       {isViewingRep && (
         <div className="bg-primary/10 text-primary text-xs px-4 py-2 flex items-center justify-between gap-3">
-          <span>Você está vendo os dados de <strong>{viewingRepLabel ?? "representante"}</strong> (somente leitura).</span>
-          <Button size="sm" variant="secondary" onClick={() => setViewAs(null)}>Voltar para a matriz</Button>
+          <span>
+            Você está vendo os dados de <strong>{viewingRepLabel ?? "representante"}</strong>{" "}
+            (somente leitura).
+          </span>
+          <Button size="sm" variant="secondary" onClick={() => setViewAs(null)}>
+            Voltar para a matriz
+          </Button>
         </div>
       )}
     </>
