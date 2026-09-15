@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Package, AlertTriangle, TrendingUp, DollarSign, Wallet } from "lucide-react";
+import { useScope, scopeProducts } from "@/hooks/use-scope";
 
 export const Route = createFileRoute("/_app/")({
   component: Dashboard,
@@ -12,6 +13,7 @@ const fmt = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
 
 function Dashboard() {
+  const { ownerId, productOwner, isMatriz, isViewingRep } = useScope();
   const [stats, setStats] = useState({
     stockValue: 0,
     totalProfit: 0,
@@ -26,10 +28,11 @@ function Dashboard() {
 
   const load = useCallback(async () => {
     {
-      const { data: products } = await supabase.from("products").select("*");
-      const { data: sales } = await supabase.from("sales").select("*, products(name)");
-      const { data: pays } = await (supabase as any)
-        .from("supplier_payments").select("amount");
+      const { data: products } = await scopeProducts(supabase.from("products").select("*") as any, productOwner);
+      const salesQuery = supabase.from("sales").select("*, products(name)");
+      const { data: sales } = await (isMatriz ? salesQuery : salesQuery.eq("owner_id", ownerId));
+      const paysQuery = (supabase as any).from("supplier_payments").select("amount");
+      const { data: pays } = await (isMatriz ? paysQuery.eq("owner_id", ownerId) : paysQuery.eq("owner_id", ownerId));
       const { data: backups } = await (supabase as any)
         .from("data_backups").select("created_at").order("created_at", { ascending: false }).limit(1);
 
@@ -75,7 +78,7 @@ function Dashboard() {
         lastBackupAt: backups?.[0]?.created_at ?? null,
       });
     }
-  }, []);
+  }, [isMatriz, ownerId, productOwner]);
 
   // Faturamento em tempo real: recarrega quando vendas ou estoque mudam na rua
   useEffect(() => {
@@ -92,7 +95,7 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Painel Fruta²</h2>
+      <div><h2 className="text-2xl font-bold">Painel Fruta²</h2><p className="text-sm text-muted-foreground">{isMatriz ? "Visão consolidada das vendas da matriz e dos representantes." : isViewingRep ? "Indicadores do representante selecionado." : "Seus indicadores de vendas e estoque móvel."}</p></div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={<Package />} label="Valor do Estoque" value={fmt(stats.stockValue)} />
