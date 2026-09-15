@@ -89,7 +89,7 @@ function EntradasPage() {
       });
     }
     const { data: u } = await supabase.auth.getUser();
-    const payload = rows.map((r) => ({ ...r, created_by: u.user?.id }));
+    const payload = rows.map((r) => ({ ...r, created_by: u.user?.id, owner_id: u.user?.id }));
     const { error } = await supabase.from("stock_entries").insert(payload as any);
     if (error) return toast.error(error.message);
     toast.success(`${rows.length} item(ns) registrado(s)`);

@@ -103,6 +103,7 @@ function VendasPage() {
   };
 
   const setSaleStatus = async (s: any, next: "paid" | "unpaid" | "scheduled") => {
+    if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
     const patch: any = { status: next };
     if (next !== "scheduled") patch.delivery_date = null;
     const { error } = await supabase.from("sales").update(patch).eq("id", s.id);
@@ -111,6 +112,7 @@ function VendasPage() {
   };
 
   const removeSale = async (s: any) => {
+    if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
     const { error } = await supabase.from("sales").delete().eq("id", s.id);
     if (error) return toast.error(error.message);
     toast.success("Venda excluída, estoque restaurado");
@@ -118,6 +120,7 @@ function VendasPage() {
   };
 
   const confirmBoleto = async (s: any, confirm: boolean) => {
+    if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
     const { error } = await (supabase as any)
       .from("sales")
       .update({
@@ -196,7 +199,7 @@ function VendasPage() {
               : "Vendas dão baixa no seu estoque."}
         </p>
       </div>
-      <Card className="p-5 space-y-4">
+      {!isViewingRep && <Card className="p-5 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="md:col-span-1">
             <Label>Cliente</Label>
@@ -294,7 +297,7 @@ function VendasPage() {
         <p className="text-xs text-muted-foreground">
           Vendas agendadas dão baixa no estoque imediatamente. Clique na etiqueta para concluir como Pago / A Pagar, ou exclua para devolver ao estoque.
         </p>
-      </Card>
+      </Card>}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-5">
@@ -386,7 +389,17 @@ function VendasPage() {
                 <td className="p-3 text-right">{fmtBRL(s.unit_sale_price)}</td>
                 <td className="p-3 text-right font-semibold">{fmtBRL(Number(s.unit_sale_price) * s.quantity)}</td>
                 <td className="p-3 text-center">
-                  <DropdownMenu>
+                  {isViewingRep ? (
+                    <Badge
+                      variant={
+                        s.payment_method === "boleto" && !s.boleto_paid_at ? "outline" :
+                        s.status === "paid" ? "default" :
+                        s.status === "scheduled" ? "secondary" : "destructive"
+                      }
+                    >
+                      {statusLabel(s)}
+                    </Badge>
+                  ) : <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button>
                         <Badge
@@ -410,10 +423,10 @@ function VendasPage() {
                       <DropdownMenuItem onClick={() => setSaleStatus(s, "unpaid")}>Marcar como A Pagar</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setSaleStatus(s, "scheduled")}>Marcar como Agendada</DropdownMenuItem>
                     </DropdownMenuContent>
-                  </DropdownMenu>
+                  </DropdownMenu>}
                 </td>
                 <td className="p-3 text-center">
-                  <AlertDialog>
+                  {!isViewingRep && <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4" /></Button>
                     </AlertDialogTrigger>
@@ -429,7 +442,7 @@ function VendasPage() {
                         <AlertDialogAction onClick={() => removeSale(s)}>Excluir</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
-                  </AlertDialog>
+                  </AlertDialog>}
                 </td>
               </tr>
             ))}

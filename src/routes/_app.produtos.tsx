@@ -10,7 +10,6 @@ import { Plus, Pencil, Trash2, Download, Search, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { useSort, SortHeader } from "@/hooks/use-sort";
-import { useAuth } from "@/hooks/use-auth";
 import { useScope, scopeProducts } from "@/hooks/use-scope";
 
 export const Route = createFileRoute("/_app/produtos")({ component: ProdutosPage });
@@ -58,6 +57,7 @@ function ProdutosPage() {
   useEffect(() => { if (ownerId) load(); }, [windowDays, productOwner, ownerId]);
 
   const save = async (form: Omit<Product, "id" | "stock_quantity"> & { id?: string }) => {
+    if (!isMatriz) return toast.error("O catálogo e os valores são administrados pela matriz.");
     if (form.id) {
       const { error } = await supabase.from("products").update({
         name: form.name, cost_price: form.cost_price, sale_price: form.sale_price,
@@ -156,7 +156,7 @@ function ProdutosPage() {
         <div className="flex gap-2">
         <Button variant="outline" onClick={() => setOpenReplenish(true)}><Sparkles className="h-4 w-4 mr-2" /> Reposição Inteligente</Button>
         <Button variant="outline" onClick={exportStock}><Download className="h-4 w-4 mr-2" /> Exportar Estoque</Button>
-        {!isViewingRep && (
+         {isMatriz && (
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Novo Produto</Button>
@@ -191,7 +191,7 @@ function ProdutosPage() {
                 <td className={"p-3 text-right font-semibold " + (p.stock_quantity <= p.low_stock_threshold ? "text-destructive" : "")}>{p.stock_quantity}</td>
                 <td className="p-3 text-right">{p.low_stock_threshold}</td>
                 <td className="p-3 text-right space-x-1">
-                  {!isViewingRep && (
+                   {isMatriz && (
                     <>
                       <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => remove(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>

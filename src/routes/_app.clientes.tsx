@@ -39,10 +39,10 @@ function ClientesPage() {
   useEffect(() => {
     if (!selected) { setHistory([]); return; }
     setPicked(new Set());
-    (supabase as any).from("sales").select("*, products(name)").eq("customer_id", selected.id)
+    (supabase as any).from("sales").select("*, products(name)").eq("customer_id", selected.id).eq("owner_id", ownerId)
       .order("created_at", { ascending: false })
       .then(({ data }: any) => setHistory(data ?? []));
-  }, [selected]);
+  }, [selected, ownerId]);
 
   const histSort = useSort(history, {
     created_at: (h) => new Date(h.created_at).getTime(),
@@ -106,6 +106,7 @@ function ClientesPage() {
   };
 
   const remove = async (id: string) => {
+    if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
     if (!confirm("Remover cliente?")) return;
     const { error } = await supabase.from("customers").delete().eq("id", id);
     if (error) return toast.error(error.message);
@@ -166,9 +167,9 @@ function ClientesPage() {
               <Card className="p-5 space-y-2">
                 <div className="flex justify-between">
                   <h3 className="text-xl font-bold">{selected.name}</h3>
-                  <Button variant="ghost" size="sm" onClick={() => remove(selected.id)}>
+                  {!isViewingRep && <Button variant="ghost" size="sm" onClick={() => remove(selected.id)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  </Button>}
                 </div>
                 <p className="text-sm"><strong>Telefone:</strong> {selected.phone || "—"}</p>
                 <p className="text-sm"><strong>Endereço:</strong> {selected.address || "—"}</p>

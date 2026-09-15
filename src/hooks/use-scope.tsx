@@ -43,12 +43,15 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
       .select("email, name, accepted_user_id")
       .not("accepted_user_id", "is", null)
       .then(({ data }) => {
-        setReps(
-          ((data ?? []) as any[]).map((i) => ({
+        const activeReps = ((data ?? []) as any[]).map((i) => ({
             user_id: i.accepted_user_id as string,
             label: i.name ? `${i.name} (${i.email})` : i.email,
-          })),
-        );
+          }));
+        setReps(activeReps);
+        if (saved && !activeReps.some((rep) => rep.user_id === saved)) {
+          setViewAsState(null);
+          window.localStorage.removeItem(STORAGE_KEY);
+        }
       });
   }, [isAdmin]);
 
