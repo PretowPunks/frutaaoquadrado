@@ -140,14 +140,20 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    min-height: 100vh;
+    min-height: 100dvh;
     min-width: 320px;
     overflow-x: hidden;
+    overscroll-behavior-y: none;
     -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
   }
 
   html {
     background-color: var(--color-background);
+    min-height: 100%;
+    overflow-x: hidden;
   }
 
   button,
