@@ -395,6 +395,7 @@ export type Database = {
           source_product_id: string
           to_user_id: string
           unit_cost: number
+          unit_sale_price: number
         }
         Insert: {
           created_at?: string
@@ -406,6 +407,7 @@ export type Database = {
           source_product_id: string
           to_user_id: string
           unit_cost?: number
+          unit_sale_price?: number
         }
         Update: {
           created_at?: string
@@ -417,6 +419,7 @@ export type Database = {
           source_product_id?: string
           to_user_id?: string
           unit_cost?: number
+          unit_sale_price?: number
         }
         Relationships: [
           {
