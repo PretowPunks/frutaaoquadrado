@@ -15,6 +15,8 @@ import { useSort, SortHeader } from "@/hooks/use-sort";
 import { PrintPortal } from "@/components/print-portal";
 import { ReceiptDoc, BoletoReportDoc } from "@/components/print-docs";
 import { Badge } from "@/components/ui/badge";
+import { useScope } from "@/hooks/use-scope";
+import { RepresentativeProfitPayments } from "@/components/representative-profit-payments";
 
 export const Route = createFileRoute("/_app/repasses")({ component: RepassesPage });
 
@@ -22,6 +24,12 @@ type PendingItem = { product_id: string; product_name: string; quantity: number;
 type SaleRemain = { id: string; remaining: number };
 
 function RepassesPage() {
+  const { ownerId, isMatriz, isViewingRep } = useScope();
+  if (isMatriz) return <RepresentativeProfitPayments />;
+  return <SupplierRepasses ownerId={ownerId} readOnly={isViewingRep} />;
+}
+
+function SupplierRepasses({ ownerId, readOnly }: { ownerId: string; readOnly: boolean }) {
   const [payments, setPayments] = useState<any[]>([]);
   const [supplierTotal, setSupplierTotal] = useState(0);
   const [pending, setPending] = useState<PendingItem[]>([]);
@@ -39,8 +47,8 @@ function RepassesPage() {
 
   const load = async () => {
     const [paysRes, salesRes] = await Promise.all([
-      (supabase as any).from("supplier_payments").select("*").order("paid_at", { ascending: false }),
-      supabase.from("sales").select("id, product_id, quantity, repassed_quantity, unit_cost, supplier_payment_id, status, payment_method, boleto_due_date, boleto_paid_at, products(name), customers(name)"),
+      (supabase as any).from("supplier_payments").select("*").eq("owner_id", ownerId).order("paid_at", { ascending: false }),
+      supabase.from("sales").select("id, product_id, quantity, repassed_quantity, unit_cost, supplier_payment_id, status, payment_method, boleto_due_date, boleto_paid_at, products(name), customers(name)").eq("owner_id", ownerId),
     ]);
     setPayments(paysRes.data ?? []);
     const sales = (salesRes.data ?? []) as any[];
@@ -88,7 +96,7 @@ function RepassesPage() {
     setSelected(new Set(list.map((p) => p.product_id))); // por padrão tudo selecionado
     setQtyByProduct(Object.fromEntries(list.map((p) => [p.product_id, p.quantity])));
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [ownerId]);
 
   const qtyOf = (p: PendingItem) => Math.min(Math.max(qtyByProduct[p.product_id] ?? p.quantity, 0), p.quantity);
   const selectedItems = pending
@@ -104,6 +112,7 @@ function RepassesPage() {
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(pending.map((p) => p.product_id)));
 
   const submit = async () => {
+    if (readOnly) return toast.error("Você está apenas consultando os dados do representante.");
     if (selectedItems.length === 0) return toast.error("Selecione ao menos um produto para repassar");
     const { data: u } = await supabase.auth.getUser();
 
@@ -113,6 +122,7 @@ function RepassesPage() {
       note: note || null,
       paid_at: new Date(paidAt).toISOString(),
       created_by: u.user?.id,
+      owner_id: ownerId,
     }).select().single();
     if (e1 || !pay) return toast.error(e1?.message ?? "Erro ao criar repasse");
 
@@ -164,6 +174,7 @@ function RepassesPage() {
   };
 
   const remove = async (id: string) => {
+    if (readOnly) return toast.error("Você está apenas consultando os dados do representante.");
     if (!confirm("Excluir este repasse? As vendas vinculadas voltarão para 'pendentes'.")) return;
     await (supabase as any).from("sales").update({ repassed_quantity: 0 }).eq("supplier_payment_id", id);
     const { error } = await (supabase as any).from("supplier_payments").delete().eq("id", id);
@@ -177,6 +188,7 @@ function RepassesPage() {
   const owed = supplierTotal - paid - boletoPaidTotal;
 
   const confirmBoleto = async (b: any, confirm: boolean) => {
+    if (readOnly) return toast.error("Você está apenas consultando os dados do representante.");
     const { error } = await (supabase as any)
       .from("sales")
       .update({
@@ -230,7 +242,7 @@ function RepassesPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Repasses ao Fornecedor</h2>
+      <div><h2 className="text-2xl font-bold">Repasses ao Fornecedor</h2>{readOnly && <p className="text-sm text-muted-foreground">Dados do representante — somente consulta.</p>}</div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-5">
@@ -290,12 +302,14 @@ function RepassesPage() {
                       {b.paid_at ? (
                         <div className="flex items-center justify-center gap-2">
                           <Badge>Pago em {new Date(b.paid_at).toLocaleDateString("pt-BR")}</Badge>
-                          <Button size="sm" variant="ghost" onClick={() => confirmBoleto(b, false)}>Desfazer</Button>
+                          {!readOnly && <Button size="sm" variant="ghost" onClick={() => confirmBoleto(b, false)}>Desfazer</Button>}
                         </div>
-                      ) : (
+                      ) : !readOnly ? (
                         <Button size="sm" variant="outline" onClick={() => confirmBoleto(b, true)}>
                           Confirmar pagamento
                         </Button>
+                      ) : (
+                        <Badge variant="outline">Aguardando pagamento</Badge>
                       )}
                     </td>
                   </tr>
@@ -306,7 +320,7 @@ function RepassesPage() {
         )}
       </Card>
 
-      <Card className="p-5 space-y-4">
+      {!readOnly && <Card className="p-5 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="font-semibold">Vendas pendentes de repasse</h3>
           <div className="flex items-center gap-3">
@@ -397,7 +411,7 @@ function RepassesPage() {
             </Button>
           </>
         )}
-      </Card>
+      </Card>}
 
       <Card className="p-0 overflow-hidden">
         <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
@@ -443,9 +457,9 @@ function RepassesPage() {
                     <Button size="sm" variant="outline" onClick={() => openReceiptFor(p.id)}>
                       <FileText className="h-4 w-4 mr-1" /> Comprovante
                     </Button>
-                    <Button size="icon" variant="ghost" onClick={() => remove(p.id)}>
+                    {!readOnly && <Button size="icon" variant="ghost" onClick={() => remove(p.id)}>
                       <Trash2 className="h-4 w-4" />
-                    </Button>
+                    </Button>}
                   </td>
                 </tr>
               ))}

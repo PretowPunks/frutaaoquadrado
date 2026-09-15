@@ -43,20 +43,22 @@ function RepresentantesPage() {
     const list = (inv ?? []) as Invite[];
     setInvites(list);
 
-    const { data: sales } = await supabase.from("sales").select("owner_id, quantity, unit_sale_price, unit_cost");
-    const { data: pays } = await supabase.from("supplier_payments").select("owner_id, amount");
+    const { data: sales } = await supabase.from("sales").select("owner_id, quantity, unit_sale_price, unit_cost, payment_method, boleto_paid_at");
+    const { data: pays } = await (supabase as any).from("representative_profit_payments").select("rep_user_id, profit_amount");
 
     const agg: Record<string, { sold: number; cost: number; paid: number }> = {};
     for (const s of (sales ?? []) as any[]) {
       const k = s.owner_id ?? "—";
       agg[k] = agg[k] ?? { sold: 0, cost: 0, paid: 0 };
       agg[k].sold += Number(s.quantity) * Number(s.unit_sale_price);
-      agg[k].cost += Number(s.quantity) * Number(s.unit_cost);
+      if (s.payment_method === "boleto" && s.boleto_paid_at) {
+        agg[k].cost += Number(s.quantity) * (Number(s.unit_sale_price) - Number(s.unit_cost));
+      }
     }
     for (const p of (pays ?? []) as any[]) {
-      const k = p.owner_id ?? "—";
+      const k = p.rep_user_id ?? "—";
       agg[k] = agg[k] ?? { sold: 0, cost: 0, paid: 0 };
-      agg[k].paid += Number(p.amount);
+      agg[k].paid += Number(p.profit_amount);
     }
 
     setRows(

@@ -179,6 +179,53 @@ export type Database = {
         }
         Relationships: []
       }
+      representative_profit_payments: {
+        Row: {
+          cost_total: number
+          created_at: string
+          created_by: string
+          gross_sale: number
+          id: string
+          note: string | null
+          paid_at: string
+          profit_amount: number
+          rep_user_id: string
+          sale_id: string
+        }
+        Insert: {
+          cost_total: number
+          created_at?: string
+          created_by: string
+          gross_sale: number
+          id?: string
+          note?: string | null
+          paid_at?: string
+          profit_amount: number
+          rep_user_id: string
+          sale_id: string
+        }
+        Update: {
+          cost_total?: number
+          created_at?: string
+          created_by?: string
+          gross_sale?: number
+          id?: string
+          note?: string | null
+          paid_at?: string
+          profit_amount?: number
+          rep_user_id?: string
+          sale_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "representative_profit_payments_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: true
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales: {
         Row: {
           boleto_due_date: string | null
