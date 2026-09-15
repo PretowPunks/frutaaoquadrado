@@ -17,6 +17,37 @@ function DocHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   );
 }
 
+export type RepresentativeTransferReceipt = {
+  id: string;
+  date: string;
+  representativeName: string;
+  profitAmount: number;
+  method: "Abatimento" | "PIX" | "Dinheiro";
+  updatedDebt: number;
+};
+
+/** Comprovante financeiro da matriz para o representante */
+export function RepresentativeTransferReceiptDoc({ receipt }: { receipt: RepresentativeTransferReceipt }) {
+  return (
+    <div className="mx-auto w-full max-w-sm text-sm">
+      <DocHeader title="Comprovante de Repasse" subtitle={`Nº ${receipt.id.slice(0, 8).toUpperCase()}`} />
+      <div className="border-y border-dashed py-3 space-y-2">
+        <div className="flex justify-between gap-4"><span>Data</span><strong>{new Date(`${receipt.date}T12:00:00`).toLocaleDateString("pt-BR")}</strong></div>
+        <div className="flex justify-between gap-4"><span>Representante</span><strong className="text-right">{receipt.representativeName}</strong></div>
+        <div className="flex justify-between gap-4"><span>Valor do lucro</span><strong>{fmtBRL(receipt.profitAmount)}</strong></div>
+        <div className="flex justify-between gap-4"><span>Forma de repasse</span><strong>{receipt.method}</strong></div>
+      </div>
+      <div className="flex justify-between gap-4 py-4 text-base">
+        <span className="font-semibold">Saldo devedor atualizado</span>
+        <strong>{fmtBRL(receipt.updatedDebt)}</strong>
+      </div>
+      <p className="border-t border-dashed pt-3 text-center text-xs text-muted-foreground">
+        Operação confirmada pela Matriz · Fruta²
+      </p>
+    </div>
+  );
+}
+
 /** Comprovante de repasse ao fornecedor */
 export function ReceiptDoc({
   payment,
