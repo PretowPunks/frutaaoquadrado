@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_app/transferencias")({
   component: TransferenciasPage,
 });
 
-type Prod = { id: string; name: string; stock_quantity: number; cost_price: number };
+type Prod = { id: string; name: string; stock_quantity: number; cost_price: number; sale_price: number };
 type Rep = { user_id: string; label: string };
 
 function TransferenciasPage() {
@@ -35,13 +35,14 @@ function TransferenciasPage() {
   const [productId, setProductId] = useState("");
   const [repId, setRepId] = useState("");
   const [qty, setQty] = useState("");
+  const [salePrice, setSalePrice] = useState("");
   const [note, setNote] = useState("");
   const [q, setQ] = useState("");
 
   const load = useCallback(async () => {
     const { data: prods } = await supabase
       .from("products")
-      .select("id, name, stock_quantity, cost_price")
+      .select("id, name, stock_quantity, cost_price, sale_price")
       .is("owner_id", null)
       .order("name");
     setMatriz((prods ?? []) as Prod[]);
@@ -70,11 +71,19 @@ function TransferenciasPage() {
 
   const selected = matriz.find((p) => p.id === productId);
 
+  const selectProduct = (id: string) => {
+    setProductId(id);
+    const product = matriz.find((item) => item.id === id);
+    setSalePrice(product ? String(product.sale_price) : "");
+  };
+
   const transfer = async () => {
     if (!selected) return toast.error("Selecione o produto da matriz");
     if (!repId) return toast.error("Selecione o vendedor");
     const quantity = Number(qty);
+    const unitSalePrice = Number(salePrice);
     if (!Number.isFinite(quantity) || quantity <= 0) return toast.error("Quantidade inválida");
+    if (!Number.isFinite(unitSalePrice) || unitSalePrice < 0) return toast.error("Preço de saída inválido");
     if (quantity > selected.stock_quantity)
       return toast.error(`Estoque da matriz insuficiente (${selected.stock_quantity} un.)`);
 
@@ -84,11 +93,14 @@ function TransferenciasPage() {
       to_user_id: repId,
       quantity,
       unit_cost: selected.cost_price,
+      unit_sale_price: unitSalePrice,
       note: note.trim() || null,
     });
     if (error) return toast.error(error.message);
     toast.success("Transferência registrada — estoque atualizado automaticamente.");
     setQty("");
+    setSalePrice("");
+    setProductId("");
     setNote("");
     load();
   };
@@ -118,7 +130,8 @@ function TransferenciasPage() {
       product_name: (r) => r.product_name,
       rep: (r) => repLabel(r.to_user_id),
       quantity: (r) => r.quantity,
-      total: (r) => Number(r.unit_cost) * r.quantity,
+      unit_sale_price: (r) => Number(r.unit_sale_price),
+      total: (r) => Number(r.unit_sale_price) * r.quantity,
     },
     { key: "created_at", dir: "desc" },
   );
@@ -144,7 +157,7 @@ function TransferenciasPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="md:col-span-2">
             <Label>Produto (estoque da matriz)</Label>
-            <Select value={productId} onValueChange={setProductId}>
+            <Select value={productId} onValueChange={selectProduct}>
               <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
                 {matriz.map((p) => (
@@ -171,7 +184,11 @@ function TransferenciasPage() {
             <Label>Quantidade</Label>
             <Input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)} />
           </div>
-          <div className="md:col-span-2">
+          <div>
+            <Label>Preço de saída da Matriz</Label>
+            <Input type="number" min="0" step="0.01" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} />
+          </div>
+          <div>
             <Label>Observação</Label>
             <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ex.: carga da manhã" />
           </div>
@@ -199,7 +216,8 @@ function TransferenciasPage() {
                   <th className="text-left p-3"><SortHeader label="Produto" sortKey="product_name" currentKey={sort.sortKey} dir={sort.sortDir} onToggle={sort.toggle} /></th>
                   <th className="text-left p-3"><SortHeader label="Vendedor" sortKey="rep" currentKey={sort.sortKey} dir={sort.sortDir} onToggle={sort.toggle} /></th>
                   <th className="text-right p-3"><SortHeader label="Qtd" sortKey="quantity" currentKey={sort.sortKey} dir={sort.sortDir} onToggle={sort.toggle} /></th>
-                  <th className="text-right p-3"><SortHeader label="Custo total" sortKey="total" currentKey={sort.sortKey} dir={sort.sortDir} onToggle={sort.toggle} /></th>
+                  <th className="text-right p-3"><SortHeader label="Preço Matriz" sortKey="unit_sale_price" currentKey={sort.sortKey} dir={sort.sortDir} onToggle={sort.toggle} /></th>
+                  <th className="text-right p-3"><SortHeader label="Total" sortKey="total" currentKey={sort.sortKey} dir={sort.sortDir} onToggle={sort.toggle} /></th>
                   <th className="p-3" />
                 </tr>
               </thead>
@@ -210,7 +228,8 @@ function TransferenciasPage() {
                     <td className="p-3">{r.product_name}</td>
                     <td className="p-3">{repLabel(r.to_user_id)}</td>
                     <td className="p-3 text-right">{r.quantity}</td>
-                    <td className="p-3 text-right">{fmtBRL(Number(r.unit_cost) * r.quantity)}</td>
+                    <td className="p-3 text-right">{fmtBRL(Number(r.unit_sale_price))}</td>
+                    <td className="p-3 text-right">{fmtBRL(Number(r.unit_sale_price) * r.quantity)}</td>
                     <td className="p-3 text-right">
                       <Button variant="ghost" size="sm" onClick={() => remove(r.id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
