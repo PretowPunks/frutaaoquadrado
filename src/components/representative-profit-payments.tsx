@@ -39,6 +39,7 @@ type TransferRecord = RepresentativeTransferReceipt & {
   repUserId: string;
   saleId: string;
   note: string;
+  saleProfit?: number;
 };
 
 type PendingTransfer = {
@@ -125,6 +126,17 @@ export function RepresentativeProfitPayments() {
     0,
   );
   const paidTotal = localTransfers.reduce((sum, payment) => sum + Number(payment.profitAmount), 0);
+  const availableManualByRep = useMemo(() => {
+    const available: Record<string, number> = {};
+    for (const record of localTransfers) {
+      if (record.method === "Abatimento") {
+        available[record.repUserId] = (available[record.repUserId] ?? 0) + Math.max(Number(record.saleProfit ?? record.profitAmount) - record.profitAmount, 0);
+      } else {
+        available[record.repUserId] = (available[record.repUserId] ?? 0) - record.profitAmount;
+      }
+    }
+    return available;
+  }, [localTransfers]);
   const filtered = pending.filter((sale) => {
     const term = query.trim().toLowerCase();
     return !term || [labels[sale.owner_id], sale.products?.name, sale.customers?.name]
@@ -147,12 +159,17 @@ export function RepresentativeProfitPayments() {
     const record: TransferRecord = {
       id: crypto.randomUUID(), date: paidAt, representativeName: labels[sale.owner_id] ?? "Representante",
       repUserId: sale.owner_id, saleId: sale.id, profitAmount: amount, method, updatedDebt, note: note.trim(),
+      saleProfit: (Number(sale.unit_sale_price) - Number(sale.unit_cost)) * sale.quantity,
     };
     const next = [record, ...localTransfers];
     setLocalTransfers(next);
     writeLocalTransfers(next);
     setDebts((current) => ({ ...current, [sale.owner_id]: updatedDebt }));
     setReceipt(record);
+    if (method === "Abatimento" && Number(record.saleProfit) > amount) {
+      setManualRepId(sale.owner_id);
+      setManualAmount((Number(record.saleProfit) - amount).toFixed(2));
+    }
     setPendingTransfer(null);
     setPaying(null);
     setNote("");
@@ -163,6 +180,8 @@ export function RepresentativeProfitPayments() {
     const amount = Number(manualAmount.replace(",", "."));
     const representativeName = labels[manualRepId];
     if (!representativeName || amount <= 0) return toast.error("Informe o representante e um valor válido.");
+    const available = Math.max(availableManualByRep[manualRepId] ?? 0, 0);
+    if (amount > available) return toast.error(`O valor máximo disponível para repasse manual é ${fmtBRL(available)}.`);
     const virtualSale: BoletoSale = { id: `manual-${Date.now()}`, owner_id: manualRepId, quantity: 1, unit_sale_price: amount, unit_cost: 0, boleto_paid_at: new Date().toISOString(), created_at: new Date().toISOString(), products: null, customers: null };
     setPendingTransfer({ sale: virtualSale, method: manualMethod, amount, debtBefore: debts[manualRepId] ?? 0 });
     setManualOpen(false);
@@ -216,11 +235,11 @@ export function RepresentativeProfitPayments() {
         <div className="flex gap-2"><Button onClick={prepareSaleTransfer}>Continuar para confirmação</Button><Button variant="outline" onClick={() => setPaying(null)}>Cancelar</Button></div>
       </Card>}
 
-      <Dialog open={manualOpen} onOpenChange={setManualOpen}><DialogContent><DialogHeader><DialogTitle>Registrar Repasse Manual</DialogTitle><DialogDescription>Use PIX ou Dinheiro somente para o valor que não pôde ser abatido do saldo devedor.</DialogDescription></DialogHeader><div className="space-y-3"><div><Label>Representante</Label><Select value={manualRepId} onValueChange={setManualRepId}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{Object.entries(labels).map(([id, label]) => <SelectItem key={id} value={id}>{label}</SelectItem>)}</SelectContent></Select></div><div className="grid grid-cols-2 gap-3"><div><Label>Forma</Label><Select value={manualMethod} onValueChange={(value: "PIX" | "Dinheiro") => setManualMethod(value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="PIX">PIX</SelectItem><SelectItem value="Dinheiro">Dinheiro</SelectItem></SelectContent></Select></div><div><Label>Valor</Label><Input inputMode="decimal" value={manualAmount} onChange={(event) => setManualAmount(event.target.value)} placeholder="0,00" /></div></div></div><DialogFooter><Button variant="outline" onClick={() => setManualOpen(false)}>Cancelar</Button><Button onClick={prepareManualTransfer}>Continuar</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={manualOpen} onOpenChange={setManualOpen}><DialogContent><DialogHeader><DialogTitle>Registrar Repasse Manual</DialogTitle><DialogDescription>Use PIX ou Dinheiro somente para o valor que não pôde ser abatido do saldo devedor.</DialogDescription></DialogHeader><div className="space-y-3"><div><Label>Representante</Label><Select value={manualRepId} onValueChange={setManualRepId}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{Object.entries(labels).map(([id, label]) => <SelectItem key={id} value={id}>{label}</SelectItem>)}</SelectContent></Select>{manualRepId && <p className="mt-1 text-xs text-muted-foreground">Disponível para PIX/Dinheiro: {fmtBRL(Math.max(availableManualByRep[manualRepId] ?? 0, 0))}</p>}</div><div className="grid grid-cols-2 gap-3"><div><Label>Forma</Label><Select value={manualMethod} onValueChange={(value: "PIX" | "Dinheiro") => setManualMethod(value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="PIX">PIX</SelectItem><SelectItem value="Dinheiro">Dinheiro</SelectItem></SelectContent></Select></div><div><Label>Valor</Label><Input inputMode="decimal" value={manualAmount} onChange={(event) => setManualAmount(event.target.value)} placeholder="0,00" /></div></div></div><DialogFooter><Button variant="outline" onClick={() => setManualOpen(false)}>Cancelar</Button><Button onClick={prepareManualTransfer}>Continuar</Button></DialogFooter></DialogContent></Dialog>
 
       <Dialog open={Boolean(pendingTransfer)} onOpenChange={(open) => !open && setPendingTransfer(null)}><DialogContent><DialogHeader><DialogTitle>Confirmar repasse</DialogTitle><DialogDescription>Revise os valores. A operação só será concluída após esta confirmação da Matriz.</DialogDescription></DialogHeader>{pendingTransfer && <div className="space-y-2 rounded-md border p-4 text-sm"><div className="flex justify-between"><span>Representante</span><strong>{labels[pendingTransfer.sale.owner_id]}</strong></div><div className="flex justify-between"><span>Forma</span><strong>{pendingTransfer.method}</strong></div><div className="flex justify-between"><span>Valor</span><strong>{fmtBRL(pendingTransfer.amount)}</strong></div><div className="flex justify-between border-t pt-2"><span>Saldo após confirmação</span><strong>{fmtBRL(pendingTransfer.method === "Abatimento" ? Math.max(0, pendingTransfer.debtBefore - pendingTransfer.amount) : pendingTransfer.debtBefore)}</strong></div></div>}<DialogFooter><Button variant="outline" onClick={() => setPendingTransfer(null)}>Voltar</Button><Button onClick={confirmTransfer}>Confirmar repasse</Button></DialogFooter></DialogContent></Dialog>
 
-      <Dialog open={Boolean(receipt)} onOpenChange={(open) => !open && setReceipt(null)}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Relatório de Conferência</DialogTitle><DialogDescription>Comprovante do repasse confirmado pela Matriz.</DialogDescription></DialogHeader>{receipt && <RepresentativeTransferReceiptDoc receipt={receipt} />}<DialogFooter><Button variant="outline" onClick={() => setReceipt(null)}>Fechar</Button><Button onClick={() => window.print()}><Printer className="h-4 w-4 mr-2" /> Baixar comprovante</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={Boolean(receipt)} onOpenChange={(open) => !open && setReceipt(null)}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Relatório de Conferência</DialogTitle><DialogDescription>Comprovante do repasse confirmado pela Matriz.</DialogDescription></DialogHeader>{receipt && <RepresentativeTransferReceiptDoc receipt={receipt} />}<DialogFooter><Button variant="outline" onClick={() => setReceipt(null)}>Fechar</Button>{receipt?.method === "Abatimento" && Number(receipt.saleProfit ?? 0) > receipt.profitAmount && <Button variant="outline" onClick={() => { setReceipt(null); setManualOpen(true); }}>Repassar excedente</Button>}<Button onClick={() => window.print()}><Printer className="h-4 w-4 mr-2" /> Baixar comprovante</Button></DialogFooter></DialogContent></Dialog>
       {receipt && <PrintPortal><RepresentativeTransferReceiptDoc receipt={receipt} /></PrintPortal>}
     </div>
   );
