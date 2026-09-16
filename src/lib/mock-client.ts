@@ -198,33 +198,36 @@ class MockQueryBuilder implements PromiseLike<Result> {
     if (this.table === "stock_entries") {
       for (const row of after) {
         const product = db.products.find((item) => item.id === row.product_id);
-        if (product) product.stock_quantity += Number(row.quantity);
+        if (product) product.stock_quantity = Number(product.stock_quantity) + Number(row.quantity);
       }
       for (const row of before) {
         const product = db.products.find((item) => item.id === row.product_id);
-        if (product) product.stock_quantity = Math.max(0, product.stock_quantity - Number(row.quantity));
+        if (product)
+          product.stock_quantity = Math.max(0, Number(product.stock_quantity) - Number(row.quantity));
       }
     }
     if (this.table === "sales") {
       for (const row of after) {
         if (row.status === "scheduled") continue;
         const product = db.products.find((item) => item.id === row.product_id);
-        if (product) product.stock_quantity = Math.max(0, product.stock_quantity - Number(row.quantity));
+        if (product)
+          product.stock_quantity = Math.max(0, Number(product.stock_quantity) - Number(row.quantity));
       }
       for (const row of before) {
         if (row.status === "scheduled") continue;
         const product = db.products.find((item) => item.id === row.product_id);
-        if (product) product.stock_quantity += Number(row.quantity);
+        if (product) product.stock_quantity = Number(product.stock_quantity) + Number(row.quantity);
       }
     }
     if (this.table === "stock_transfers") {
       for (const row of after) {
         const product = db.products.find((item) => item.id === row.source_product_id);
-        if (product) product.stock_quantity = Math.max(0, product.stock_quantity - Number(row.quantity));
+        if (product)
+          product.stock_quantity = Math.max(0, Number(product.stock_quantity) - Number(row.quantity));
       }
       for (const row of before) {
         const product = db.products.find((item) => item.id === row.source_product_id);
-        if (product) product.stock_quantity += Number(row.quantity);
+        if (product) product.stock_quantity = Number(product.stock_quantity) + Number(row.quantity);
       }
     }
   }
@@ -259,10 +262,15 @@ class MockQueryBuilder implements PromiseLike<Result> {
           const current = matched[index];
           if (previous?.status === "scheduled" && current?.status !== "scheduled") {
             const product = db.products.find((item) => item.id === current?.product_id);
-            if (product) product.stock_quantity = Math.max(0, product.stock_quantity - Number(current?.quantity));
+            if (product)
+              product.stock_quantity = Math.max(
+                0,
+                Number(product.stock_quantity) - Number(current?.quantity),
+              );
           } else if (previous?.status !== "scheduled" && current?.status === "scheduled") {
             const product = db.products.find((item) => item.id === current?.product_id);
-            if (product) product.stock_quantity += Number(current?.quantity);
+            if (product)
+              product.stock_quantity = Number(product.stock_quantity) + Number(current?.quantity);
           }
         }
       }
@@ -273,7 +281,7 @@ class MockQueryBuilder implements PromiseLike<Result> {
       this.applySideEffects(db, matched, []);
       db[this.table] = tableRows.filter((row) => !this.matches(row)) as never;
       if (this.table === "supplier_payments") {
-        db.supplier_payment_items = db.supplier_payment_items.filter(
+        db.supplier_payment_items = (db.supplier_payment_items as Row[]).filter(
           (item) => !matched.some((payment) => payment.id === item.payment_id),
         );
       }
@@ -320,7 +328,7 @@ export const supabase = {
       listeners.add(callback);
       return { data: { subscription: { unsubscribe: () => listeners.delete(callback) } } };
     },
-    async signOut() {
+    async signOut(_options?: { scope?: "local" | "global" }) {
       if (storageAvailable()) window.localStorage.removeItem(MOCK_SESSION_KEY);
       listeners.forEach((listener) => listener("SIGNED_OUT", null));
       return { error: null };
@@ -328,15 +336,15 @@ export const supabase = {
   },
   channel() {
     const channel = {
-      on() {
+      on(..._args: unknown[]) {
         return channel;
       },
-      subscribe() {
+      subscribe(..._args: unknown[]) {
         if (typeof window !== "undefined") window.addEventListener("fruta2:mock-data", () => undefined);
         return channel;
       },
     };
     return channel;
   },
-  removeChannel() {},
+  removeChannel(_channel?: unknown) {},
 };

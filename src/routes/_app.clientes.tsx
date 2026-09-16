@@ -88,7 +88,7 @@ function ClientesPage() {
 
     if (isAdmin) {
       const ownerIds = Array.from(
-        new Set((customerRows ?? []).map((customer) => customer.owner_id).filter(Boolean)),
+        new Set((customerRows ?? []).map((customer: Customer) => customer.owner_id).filter(Boolean)),
       ) as string[];
       if (ownerIds.length > 0) {
         const { data } = await supabase
