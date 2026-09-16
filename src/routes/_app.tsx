@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Navigate, Outlet, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/use-auth";
 import { ScopeProvider, useScope } from "@/hooks/use-scope";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -20,6 +20,7 @@ export const Route = createFileRoute("/_app")({
 
 function AppLayout() {
   const { session, loading, role, roleLoading, user, signOut } = useAuth();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   if (loading || (session && roleLoading)) {
     return (
@@ -47,6 +48,11 @@ function AppLayout() {
         </Card>
       </div>
     );
+  }
+
+  const representativeRoutes = new Set(["/campo", "/produtos", "/clientes"]);
+  if (role === "user" && !representativeRoutes.has(pathname)) {
+    return <Navigate to="/campo" replace />;
   }
 
   return (

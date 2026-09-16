@@ -17,27 +17,42 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          address_number: string | null
+          city: string | null
           created_at: string
+          document_number: string | null
           id: string
           name: string
+          neighborhood: string | null
           owner_id: string | null
           phone: string | null
+          street: string | null
         }
         Insert: {
           address?: string | null
+          address_number?: string | null
+          city?: string | null
           created_at?: string
+          document_number?: string | null
           id?: string
           name: string
+          neighborhood?: string | null
           owner_id?: string | null
           phone?: string | null
+          street?: string | null
         }
         Update: {
           address?: string | null
+          address_number?: string | null
+          city?: string | null
           created_at?: string
+          document_number?: string | null
           id?: string
           name?: string
+          neighborhood?: string | null
           owner_id?: string | null
           phone?: string | null
+          street?: string | null
         }
         Relationships: []
       }
@@ -150,6 +165,7 @@ export type Database = {
         Row: {
           accepted_at: string | null
           accepted_user_id: string | null
+          cities: string[]
           created_at: string
           email: string
           id: string
@@ -160,6 +176,7 @@ export type Database = {
         Insert: {
           accepted_at?: string | null
           accepted_user_id?: string | null
+          cities?: string[]
           created_at?: string
           email: string
           id?: string
@@ -170,6 +187,7 @@ export type Database = {
         Update: {
           accepted_at?: string | null
           accepted_user_id?: string | null
+          cities?: string[]
           created_at?: string
           email?: string
           id?: string

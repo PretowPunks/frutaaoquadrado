@@ -5,19 +5,36 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Search, Plus, X } from "lucide-react";
 import { useSort, SortHeader } from "@/hooks/use-sort";
 import { useScope, scopeProducts } from "@/hooks/use-scope";
+import { useAuth } from "@/hooks/use-auth";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 export const Route = createFileRoute("/_app/vendas")({ component: VendasPage });
@@ -26,6 +43,7 @@ type CartItem = { product_id: string; quantity: number; unit_sale_price: number 
 
 function VendasPage() {
   const { productOwner, ownerId, isMatriz, isViewingRep } = useScope();
+  const { isAdmin } = useAuth();
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [sales, setSales] = useState<any[]>([]);
@@ -34,47 +52,67 @@ function VendasPage() {
   const [paymentMethod, setPaymentMethod] = useState<"direct" | "boleto">("direct");
   const [boletoDue, setBoletoDue] = useState<string>("");
   const [deliveryDate, setDeliveryDate] = useState<string>("");
-  const [cart, setCart] = useState<CartItem[]>([{ product_id: "", quantity: 1, unit_sale_price: 0 }]);
+  const [cart, setCart] = useState<CartItem[]>([
+    { product_id: "", quantity: 1, unit_sale_price: 0 },
+  ]);
   const [q, setQ] = useState("");
   const [periodMonth, setPeriodMonth] = useState<string>(""); // formato YYYY-MM
   const [filterProductId, setFilterProductId] = useState<string>("all");
 
   const load = async () => {
     const [{ data: p }, { data: c }, { data: s }] = await Promise.all([
-      scopeProducts(supabase.from("products").select("*").order("name") as any, productOwner),
+      scopeProducts(
+        supabase.from("products").select("*").order("name") as any,
+        isAdmin ? null : productOwner,
+      ),
       supabase.from("customers").select("*").eq("owner_id", ownerId).order("name"),
-      supabase.from("sales").select("*, products(name), customers(name)").eq("owner_id", ownerId).order("created_at", { ascending: false }).limit(500),
+      supabase
+        .from("sales")
+        .select("*, products(name), customers(name)")
+        .eq("owner_id", ownerId)
+        .order("created_at", { ascending: false })
+        .limit(500),
     ]);
-    setProducts(p ?? []); setCustomers(c ?? []); setSales(s ?? []);
+    setProducts(p ?? []);
+    setCustomers(c ?? []);
+    setSales(s ?? []);
   };
-  useEffect(() => { if (ownerId) load(); }, [ownerId, productOwner]);
+  useEffect(() => {
+    if (ownerId) load();
+  }, [ownerId, productOwner]);
 
   const updateItem = (idx: number, patch: Partial<CartItem>) => {
-    setCart((c) => c.map((it, i) => {
-      if (i !== idx) return it;
-      const next = { ...it, ...patch };
-      if (patch.product_id) {
-        const p = products.find((x) => x.id === patch.product_id);
-        if (p) next.unit_sale_price = Number(p.sale_price);
-      }
-      return next;
-    }));
+    setCart((c) =>
+      c.map((it, i) => {
+        if (i !== idx) return it;
+        const next = { ...it, ...patch };
+        if (patch.product_id) {
+          const p = products.find((x) => x.id === patch.product_id);
+          if (p) next.unit_sale_price = Number(p.sale_price);
+        }
+        return next;
+      }),
+    );
   };
   const addRow = () => setCart((c) => [...c, { product_id: "", quantity: 1, unit_sale_price: 0 }]);
-  const removeRow = (idx: number) => setCart((c) => c.length === 1 ? c : c.filter((_, i) => i !== idx));
+  const removeRow = (idx: number) =>
+    setCart((c) => (c.length === 1 ? c : c.filter((_, i) => i !== idx)));
   const cartTotal = cart.reduce((a, it) => a + Number(it.unit_sale_price) * Number(it.quantity), 0);
 
   const submit = async () => {
-    if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
+    if (isViewingRep && !isAdmin)
+      return toast.error("Você está apenas consultando os dados do representante.");
     if (status === "scheduled" && !deliveryDate) return toast.error("Informe a data de entrega");
-    if (paymentMethod === "boleto" && !boletoDue) return toast.error("Informe o vencimento do boleto");
+    if (paymentMethod === "boleto" && !boletoDue)
+      return toast.error("Informe o vencimento do boleto");
     if (cart.length === 0) return toast.error("Adicione ao menos um produto");
     const rows: any[] = [];
     for (const [i, it] of cart.entries()) {
       const p = products.find((x) => x.id === it.product_id);
       if (!p) return toast.error(`Linha ${i + 1}: selecione um produto`);
       if (it.quantity < 1) return toast.error(`Linha ${i + 1}: quantidade inválida`);
-      if (it.quantity > p.stock_quantity) return toast.error(`${p.name}: estoque insuficiente (${p.stock_quantity})`);
+      if (status !== "scheduled" && it.quantity > p.stock_quantity)
+        return toast.error(`${p.name}: estoque insuficiente (${p.stock_quantity})`);
       rows.push({
         product_id: p.id,
         quantity: it.quantity,
@@ -103,7 +141,8 @@ function VendasPage() {
   };
 
   const setSaleStatus = async (s: any, next: "paid" | "unpaid" | "scheduled") => {
-    if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
+    if (isViewingRep && !isAdmin)
+      return toast.error("Você está apenas consultando os dados do representante.");
     const patch: any = { status: next };
     if (next !== "scheduled") patch.delivery_date = null;
     const { error } = await supabase.from("sales").update(patch).eq("id", s.id);
@@ -112,7 +151,8 @@ function VendasPage() {
   };
 
   const removeSale = async (s: any) => {
-    if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
+    if (isViewingRep && !isAdmin)
+      return toast.error("Você está apenas consultando os dados do representante.");
     const { error } = await supabase.from("sales").delete().eq("id", s.id);
     if (error) return toast.error(error.message);
     toast.success("Venda excluída, estoque restaurado");
@@ -120,7 +160,8 @@ function VendasPage() {
   };
 
   const confirmBoleto = async (s: any, confirm: boolean) => {
-    if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
+    if (isViewingRep && !isAdmin)
+      return toast.error("Você está apenas consultando os dados do representante.");
     const { error } = await (supabase as any)
       .from("sales")
       .update({
@@ -130,7 +171,9 @@ function VendasPage() {
       })
       .eq("id", s.id);
     if (error) return toast.error(error.message);
-    toast.success(confirm ? "Boleto confirmado — valor descontado do repasse" : "Confirmação desfeita");
+    toast.success(
+      confirm ? "Boleto confirmado — valor descontado do repasse" : "Confirmação desfeita",
+    );
     load();
   };
 
@@ -140,15 +183,21 @@ function VendasPage() {
   const boletoPaidCost = sales
     .filter((s: any) => s.payment_method === "boleto" && s.boleto_paid_at)
     .reduce((a, s) => a + Number(s.unit_cost) * s.quantity, 0);
-  const pending = sales.filter((s) => s.status === "unpaid").reduce((a, s) => a + Number(s.unit_sale_price) * s.quantity, 0);
+  const pending = sales
+    .filter((s) => s.status === "unpaid")
+    .reduce((a, s) => a + Number(s.unit_sale_price) * s.quantity, 0);
   const scheduledCount = sales.filter((s) => s.status === "scheduled").length;
 
   const statusLabel = (s: any) =>
     s.payment_method === "boleto"
-      ? (s.boleto_paid_at ? "Boleto pago" : `Boleto vence ${s.boleto_due_date ? new Date(s.boleto_due_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`)
-    : s.status === "paid" ? "Pago" :
-    s.status === "unpaid" ? "A Pagar" :
-    `Agendada ${s.delivery_date ? new Date(s.delivery_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`;
+      ? s.boleto_paid_at
+        ? "Boleto pago"
+        : `Boleto vence ${s.boleto_due_date ? new Date(s.boleto_due_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`
+      : s.status === "paid"
+        ? "Pago"
+        : s.status === "unpaid"
+          ? "A Pagar"
+          : `Agendada ${s.delivery_date ? new Date(s.delivery_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`;
 
   const inPeriod = (s: any) => {
     if (!periodMonth) return true;
@@ -156,12 +205,19 @@ function VendasPage() {
     const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     return ym === periodMonth;
   };
-  const matchesProductFilter = (s: any) => filterProductId === "all" || s.product_id === filterProductId;
+  const matchesProductFilter = (s: any) =>
+    filterProductId === "all" || s.product_id === filterProductId;
 
   const periodSales = sales.filter((s) => inPeriod(s) && matchesProductFilter(s));
   const periodItems = periodSales.reduce((a, s) => a + Number(s.quantity), 0);
-  const periodValue = periodSales.reduce((a, s) => a + Number(s.unit_sale_price) * Number(s.quantity), 0);
-  const periodProfit = periodSales.reduce((a, s) => a + (Number(s.unit_sale_price) - Number(s.unit_cost)) * Number(s.quantity), 0);
+  const periodValue = periodSales.reduce(
+    (a, s) => a + Number(s.unit_sale_price) * Number(s.quantity),
+    0,
+  );
+  const periodProfit = periodSales.reduce(
+    (a, s) => a + (Number(s.unit_sale_price) - Number(s.unit_cost)) * Number(s.quantity),
+    0,
+  );
 
   const filteredSales = periodSales.filter((s) => {
     const t = q.toLowerCase().trim();
@@ -177,15 +233,19 @@ function VendasPage() {
     ].some((v) => String(v).toLowerCase().includes(t));
   });
 
-  const { sorted, sortKey, sortDir, toggle } = useSort(filteredSales, {
-    created_at: (s) => new Date(s.created_at).getTime(),
-    product: (s) => s.products?.name ?? "",
-    customer: (s) => s.customers?.name ?? "",
-    quantity: (s) => s.quantity,
-    unit_sale_price: (s) => Number(s.unit_sale_price),
-    total: (s) => Number(s.unit_sale_price) * s.quantity,
-    status: (s) => statusLabel(s),
-  }, { key: "created_at", dir: "desc" });
+  const { sorted, sortKey, sortDir, toggle } = useSort(
+    filteredSales,
+    {
+      created_at: (s) => new Date(s.created_at).getTime(),
+      product: (s) => s.products?.name ?? "",
+      customer: (s) => s.customers?.name ?? "",
+      quantity: (s) => s.quantity,
+      unit_sale_price: (s) => Number(s.unit_sale_price),
+      total: (s) => Number(s.unit_sale_price) * s.quantity,
+      status: (s) => statusLabel(s),
+    },
+    { key: "created_at", dir: "desc" },
+  );
 
   return (
     <div className="space-y-6">
@@ -199,110 +259,177 @@ function VendasPage() {
               : "Vendas dão baixa no seu estoque."}
         </p>
       </div>
-      {!isViewingRep && <Card className="p-5 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="md:col-span-1">
-            <Label>Cliente</Label>
-            <Select value={customerId} onValueChange={setCustomerId}>
-              <SelectTrigger><SelectValue placeholder="Sem cliente" /></SelectTrigger>
-              <SelectContent>
-                {customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Status</Label>
-            <Select value={status} onValueChange={(v: any) => setStatus(v)} disabled={paymentMethod === "boleto"}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="paid">Pago</SelectItem>
-                <SelectItem value="unpaid">A Pagar</SelectItem>
-                <SelectItem value="scheduled">Agendada (entrega futura)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Forma de pagamento</Label>
-            <Select value={paymentMethod} onValueChange={(v: any) => { setPaymentMethod(v); if (v === "boleto") setStatus("unpaid"); }}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="direct">Direto (dinheiro / PIX / cartão)</SelectItem>
-                <SelectItem value="boleto">Boleto (cai na conta do fornecedor)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {paymentMethod === "boleto" && (
-            <div>
-              <Label>Vencimento do boleto</Label>
-              <Input type="date" value={boletoDue} onChange={(e) => setBoletoDue(e.target.value)} />
+      {!isViewingRep && (
+        <Card className="p-5 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="md:col-span-1">
+              <Label>Cliente</Label>
+              <Select value={customerId} onValueChange={setCustomerId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sem cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          )}
-          {status === "scheduled" && (
             <div>
-              <Label>Data de entrega</Label>
-              <Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} />
+              <Label>Status</Label>
+              <Select
+                value={status}
+                onValueChange={(v: any) => setStatus(v)}
+                disabled={paymentMethod === "boleto"}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="paid">Pago</SelectItem>
+                  <SelectItem value="unpaid">A Pagar</SelectItem>
+                  <SelectItem value="scheduled">Agendada (entrega futura)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          )}
-        </div>
+            <div>
+              <Label>Forma de pagamento</Label>
+              <Select
+                value={paymentMethod}
+                onValueChange={(v: any) => {
+                  setPaymentMethod(v);
+                  if (v === "boleto") setStatus("unpaid");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="direct">Direto (dinheiro / PIX / cartão)</SelectItem>
+                  <SelectItem value="boleto">Boleto (cai na conta do fornecedor)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {paymentMethod === "boleto" && (
+              <div>
+                <Label>Vencimento do boleto</Label>
+                <Input
+                  type="date"
+                  value={boletoDue}
+                  onChange={(e) => setBoletoDue(e.target.value)}
+                />
+              </div>
+            )}
+            {status === "scheduled" && (
+              <div>
+                <Label>Data de entrega</Label>
+                <Input
+                  type="date"
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>Produtos da venda</Label>
-            <Button type="button" size="sm" variant="outline" onClick={addRow}>
-              <Plus className="h-4 w-4 mr-1" /> Adicionar produto
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Produtos da venda</Label>
+              <Button type="button" size="sm" variant="outline" onClick={addRow}>
+                <Plus className="h-4 w-4 mr-1" /> Adicionar produto
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {cart.map((it, idx) => {
+                const p = products.find((x) => x.id === it.product_id);
+                return (
+                  <div key={idx} className="grid grid-cols-12 gap-2 items-end border rounded p-2">
+                    <div className="col-span-12 md:col-span-6">
+                      <Label className="text-xs">Produto</Label>
+                      <Select
+                        value={it.product_id}
+                        onValueChange={(v) => updateItem(idx, { product_id: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products.map((pp) => (
+                            <SelectItem key={pp.id} value={pp.id}>
+                              {pp.name} (estq: {pp.stock_quantity})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-4 md:col-span-2">
+                      <Label className="text-xs">Qtd</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={it.quantity}
+                        onChange={(e) => updateItem(idx, { quantity: Number(e.target.value) })}
+                      />
+                    </div>
+                    <div className="col-span-6 md:col-span-3">
+                      <Label className="text-xs">Valor un.</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={it.unit_sale_price}
+                        onChange={(e) =>
+                          updateItem(idx, { unit_sale_price: Number(e.target.value) })
+                        }
+                      />
+                    </div>
+                    <div className="col-span-2 md:col-span-1 flex justify-end">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => removeRow(idx)}
+                        disabled={cart.length === 1}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {p && (
+                      <div className="col-span-12 text-xs text-muted-foreground">
+                        Subtotal:{" "}
+                        <span className="font-semibold text-foreground">
+                          {fmtBRL(Number(it.unit_sale_price) * Number(it.quantity))}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t">
+              <span className="text-sm text-muted-foreground">Total da venda</span>
+              <span className="text-lg font-bold">{fmtBRL(cartTotal)}</span>
+            </div>
+            <Button onClick={submit} className="w-full">
+              Registrar Venda
             </Button>
           </div>
-          <div className="space-y-2">
-            {cart.map((it, idx) => {
-              const p = products.find((x) => x.id === it.product_id);
-              return (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-end border rounded p-2">
-                  <div className="col-span-12 md:col-span-6">
-                    <Label className="text-xs">Produto</Label>
-                    <Select value={it.product_id} onValueChange={(v) => updateItem(idx, { product_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                      <SelectContent>
-                        {products.map((pp) => <SelectItem key={pp.id} value={pp.id}>{pp.name} (estq: {pp.stock_quantity})</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-4 md:col-span-2">
-                    <Label className="text-xs">Qtd</Label>
-                    <Input type="number" min={1} value={it.quantity} onChange={(e) => updateItem(idx, { quantity: Number(e.target.value) })} />
-                  </div>
-                  <div className="col-span-6 md:col-span-3">
-                    <Label className="text-xs">Valor un.</Label>
-                    <Input type="number" step="0.01" value={it.unit_sale_price} onChange={(e) => updateItem(idx, { unit_sale_price: Number(e.target.value) })} />
-                  </div>
-                  <div className="col-span-2 md:col-span-1 flex justify-end">
-                    <Button type="button" size="icon" variant="ghost" onClick={() => removeRow(idx)} disabled={cart.length === 1}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  {p && (
-                    <div className="col-span-12 text-xs text-muted-foreground">
-                      Subtotal: <span className="font-semibold text-foreground">{fmtBRL(Number(it.unit_sale_price) * Number(it.quantity))}</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex items-center justify-between pt-2 border-t">
-            <span className="text-sm text-muted-foreground">Total da venda</span>
-            <span className="text-lg font-bold">{fmtBRL(cartTotal)}</span>
-          </div>
-          <Button onClick={submit} className="w-full">Registrar Venda</Button>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Vendas agendadas dão baixa no estoque imediatamente. Clique na etiqueta para concluir como Pago / A Pagar, ou exclua para devolver ao estoque.
-        </p>
-      </Card>}
+          <p className="text-xs text-muted-foreground">
+            Pedidos agendados reservam a intenção de compra sem baixar o estoque. A baixa ocorre
+            quando a Matriz confirma a conclusão.
+          </p>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-5">
-          <p className="text-xs text-muted-foreground">A retornar ao fornecedor (todas as vendas)</p>
-          <p className="text-2xl font-bold text-primary">{fmtBRL(supplierReturn - boletoPaidCost)}</p>
+          <p className="text-xs text-muted-foreground">
+            A retornar ao fornecedor (todas as vendas)
+          </p>
+          <p className="text-2xl font-bold text-primary">
+            {fmtBRL(supplierReturn - boletoPaidCost)}
+          </p>
           {boletoPaidCost > 0 && (
             <p className="text-xs text-muted-foreground mt-1">
               já descontado {fmtBRL(boletoPaidCost)} pago via boleto
@@ -324,20 +451,37 @@ function VendasPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
             <Label>Mês</Label>
-            <Input type="month" value={periodMonth} onChange={(e) => setPeriodMonth(e.target.value)} />
+            <Input
+              type="month"
+              value={periodMonth}
+              onChange={(e) => setPeriodMonth(e.target.value)}
+            />
           </div>
           <div>
             <Label>Produto</Label>
             <Select value={filterProductId} onValueChange={setFilterProductId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os produtos</SelectItem>
-                {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                {products.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div className="flex items-end">
-            <Button variant="outline" className="w-full" onClick={() => { setPeriodMonth(""); setFilterProductId("all"); }}>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                setPeriodMonth("");
+                setFilterProductId("all");
+              }}
+            >
               Limpar filtros
             </Button>
           </div>
@@ -360,22 +504,86 @@ function VendasPage() {
 
       <Card className="p-0 overflow-hidden">
         <div className="p-4 border-b flex items-center justify-between gap-3 flex-wrap">
-          <h3 className="font-semibold">Histórico de Vendas {periodMonth && <span className="text-xs text-muted-foreground">(filtrado)</span>}</h3>
+          <h3 className="font-semibold">
+            Histórico de Vendas{" "}
+            {periodMonth && <span className="text-xs text-muted-foreground">(filtrado)</span>}
+          </h3>
           <div className="relative w-full sm:w-72">
             <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
-            <Input className="pl-9" placeholder="Buscar em todos os campos..." value={q} onChange={(e) => setQ(e.target.value)} />
+            <Input
+              className="pl-9"
+              placeholder="Buscar em todos os campos..."
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
           </div>
         </div>
         <table className="w-full text-sm">
           <thead className="bg-secondary text-secondary-foreground">
             <tr>
-              <th className="text-left p-3"><SortHeader label="Data" sortKey="created_at" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
-              <th className="text-left p-3"><SortHeader label="Produto" sortKey="product" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
-              <th className="text-left p-3"><SortHeader label="Cliente" sortKey="customer" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
-              <th className="text-right p-3"><SortHeader label="Qtd" sortKey="quantity" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
-              <th className="text-right p-3"><SortHeader label="Valor Un." sortKey="unit_sale_price" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
-              <th className="text-right p-3"><SortHeader label="Total" sortKey="total" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
-              <th className="text-center p-3"><SortHeader label="Status" sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
+              <th className="text-left p-3">
+                <SortHeader
+                  label="Data"
+                  sortKey="created_at"
+                  currentKey={sortKey}
+                  dir={sortDir}
+                  onToggle={toggle}
+                />
+              </th>
+              <th className="text-left p-3">
+                <SortHeader
+                  label="Produto"
+                  sortKey="product"
+                  currentKey={sortKey}
+                  dir={sortDir}
+                  onToggle={toggle}
+                />
+              </th>
+              <th className="text-left p-3">
+                <SortHeader
+                  label="Cliente"
+                  sortKey="customer"
+                  currentKey={sortKey}
+                  dir={sortDir}
+                  onToggle={toggle}
+                />
+              </th>
+              <th className="text-right p-3">
+                <SortHeader
+                  label="Qtd"
+                  sortKey="quantity"
+                  currentKey={sortKey}
+                  dir={sortDir}
+                  onToggle={toggle}
+                />
+              </th>
+              <th className="text-right p-3">
+                <SortHeader
+                  label="Valor Un."
+                  sortKey="unit_sale_price"
+                  currentKey={sortKey}
+                  dir={sortDir}
+                  onToggle={toggle}
+                />
+              </th>
+              <th className="text-right p-3">
+                <SortHeader
+                  label="Total"
+                  sortKey="total"
+                  currentKey={sortKey}
+                  dir={sortDir}
+                  onToggle={toggle}
+                />
+              </th>
+              <th className="text-center p-3">
+                <SortHeader
+                  label="Status"
+                  sortKey="status"
+                  currentKey={sortKey}
+                  dir={sortDir}
+                  onToggle={toggle}
+                />
+              </th>
               <th className="text-center p-3">Ações</th>
             </tr>
           </thead>
@@ -387,62 +595,93 @@ function VendasPage() {
                 <td className="p-3">{s.customers?.name ?? "—"}</td>
                 <td className="p-3 text-right">{s.quantity}</td>
                 <td className="p-3 text-right">{fmtBRL(s.unit_sale_price)}</td>
-                <td className="p-3 text-right font-semibold">{fmtBRL(Number(s.unit_sale_price) * s.quantity)}</td>
+                <td className="p-3 text-right font-semibold">
+                  {fmtBRL(Number(s.unit_sale_price) * s.quantity)}
+                </td>
                 <td className="p-3 text-center">
-                  {isViewingRep ? (
+                  {isViewingRep && !isAdmin ? (
                     <Badge
                       variant={
-                        s.payment_method === "boleto" && !s.boleto_paid_at ? "outline" :
-                        s.status === "paid" ? "default" :
-                        s.status === "scheduled" ? "secondary" : "destructive"
+                        s.payment_method === "boleto" && !s.boleto_paid_at
+                          ? "outline"
+                          : s.status === "paid"
+                            ? "default"
+                            : s.status === "scheduled"
+                              ? "secondary"
+                              : "destructive"
                       }
                     >
                       {statusLabel(s)}
                     </Badge>
-                  ) : <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button>
-                        <Badge
-                          variant={
-                            s.payment_method === "boleto" && !s.boleto_paid_at ? "outline" :
-                            s.status === "paid" ? "default" :
-                            s.status === "scheduled" ? "secondary" : "destructive"
-                          }
-                        >
-                          {statusLabel(s)}
-                        </Badge>
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      {s.payment_method === "boleto" && (
-                        s.boleto_paid_at
-                          ? <DropdownMenuItem onClick={() => confirmBoleto(s, false)}>Desfazer confirmação do boleto</DropdownMenuItem>
-                          : <DropdownMenuItem onClick={() => confirmBoleto(s, true)}>Confirmar pagamento do boleto</DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem onClick={() => setSaleStatus(s, "paid")}>Marcar como Pago</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setSaleStatus(s, "unpaid")}>Marcar como A Pagar</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setSaleStatus(s, "scheduled")}>Marcar como Agendada</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>}
+                  ) : (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button>
+                          <Badge
+                            variant={
+                              s.payment_method === "boleto" && !s.boleto_paid_at
+                                ? "outline"
+                                : s.status === "paid"
+                                  ? "default"
+                                  : s.status === "scheduled"
+                                    ? "secondary"
+                                    : "destructive"
+                            }
+                          >
+                            {statusLabel(s)}
+                          </Badge>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        {s.payment_method === "boleto" &&
+                          (s.boleto_paid_at ? (
+                            <DropdownMenuItem onClick={() => confirmBoleto(s, false)}>
+                              Desfazer confirmação do boleto
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => confirmBoleto(s, true)}>
+                              Confirmar pagamento do boleto
+                            </DropdownMenuItem>
+                          ))}
+                        <DropdownMenuItem onClick={() => setSaleStatus(s, "paid")}>
+                          Marcar como Pago
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setSaleStatus(s, "unpaid")}>
+                          Marcar como A Pagar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setSaleStatus(s, "scheduled")}>
+                          Marcar como Agendada
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </td>
                 <td className="p-3 text-center">
-                  {!isViewingRep && <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4" /></Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Excluir venda?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          O produto voltará ao estoque automaticamente. Esta ação não pode ser desfeita.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => removeSale(s)}>Excluir</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>}
+                  {(!isViewingRep || isAdmin) && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir venda?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {s.status === "scheduled"
+                              ? "O pedido será removido sem alterar o estoque. Esta ação não pode ser desfeita."
+                              : "O produto voltará ao estoque automaticamente. Esta ação não pode ser desfeita."}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => removeSale(s)}>
+                            Excluir
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </td>
               </tr>
             ))}
