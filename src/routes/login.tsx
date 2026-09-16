@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import logoAsset from "@/assets/fruta2-logo.png.asset.json";
+import { resetMockData } from "@/lib/mock-client";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { session, loading, roleLoading } = useAuth();
+  const { session, loading, roleLoading, signInAs } = useAuth();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
 
@@ -30,19 +30,14 @@ function LoginPage() {
     if (!loading && !roleLoading && session) navigate({ to: "/", replace: true });
   }, [session, loading, roleLoading, navigate]);
 
-  const handleGoogle = async () => {
+  const handleLogin = async (role: "admin" | "user") => {
     setBusy(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      toast.error("Falha no login: " + result.error.message);
+    try {
+      await signInAs(role);
+    } catch {
+      toast.error("Não foi possível iniciar a demonstração");
       setBusy(false);
-      return;
     }
-    if (result.redirected) return;
-    // The auth listener validates the session and redirects only after the role is ready.
-    setBusy(false);
   };
 
   return (
@@ -55,11 +50,38 @@ function LoginPage() {
             className="mx-auto h-auto w-64 max-w-full"
           />
           <h1 className="text-xl font-bold text-foreground">Controle de Estoque</h1>
-          <p className="text-muted-foreground">Entre para gerenciar seu negócio</p>
+          <p className="text-muted-foreground">Modo demonstração local</p>
         </div>
-        <Button onClick={handleGoogle} disabled={busy} className="w-full" size="lg">
-          {busy ? "Entrando..." : "Entrar com Google"}
-        </Button>
+        <div className="space-y-3">
+          <Button
+            onClick={() => handleLogin("admin")}
+            disabled={busy}
+            className="w-full"
+            size="lg"
+          >
+            {busy ? "Entrando..." : "Entrar como Matriz"}
+          </Button>
+          <Button
+            onClick={() => handleLogin("user")}
+            disabled={busy}
+            className="w-full"
+            size="lg"
+            variant="secondary"
+          >
+            Entrar como Representante
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full text-xs"
+            onClick={() => {
+              resetMockData();
+              toast.success("Dados de demonstração restaurados");
+            }}
+          >
+            Restaurar dados de demonstração
+          </Button>
+        </div>
       </Card>
     </div>
   );

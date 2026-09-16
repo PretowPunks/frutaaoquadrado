@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/mock-client";
 import { Card } from "@/components/ui/card";
 import { Package, AlertTriangle, TrendingUp, DollarSign, Wallet } from "lucide-react";
 import { useScope, scopeProducts } from "@/hooks/use-scope";

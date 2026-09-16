@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/mock-client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,7 +88,7 @@ function ClientesPage() {
 
     if (isAdmin) {
       const ownerIds = Array.from(
-        new Set((customerRows ?? []).map((customer) => customer.owner_id).filter(Boolean)),
+        new Set((customerRows ?? []).map((customer: Customer) => customer.owner_id).filter(Boolean)),
       ) as string[];
       if (ownerIds.length > 0) {
         const { data } = await supabase
