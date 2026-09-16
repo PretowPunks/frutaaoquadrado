@@ -312,7 +312,7 @@ export function resetMockData() {
   writeDb(createMockDatabase());
 }
 
-export const supabase: any = {
+export const supabase = {
   from(table: keyof MockDatabase) {
     return new MockQueryBuilder(table);
   },
@@ -334,7 +334,7 @@ export const supabase: any = {
       return { error: null };
     },
   },
-  channel() {
+  channel(..._args: unknown[]) {
     const channel = {
       on(..._args: unknown[]) {
         return channel;
