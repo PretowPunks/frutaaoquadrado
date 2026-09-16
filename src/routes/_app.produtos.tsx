@@ -25,7 +25,7 @@ type Product = {
 
 function ProdutosPage() {
   
-  const { productOwner, ownerId, isMatriz, isViewingRep } = useScope();
+  const { ownerId, isMatriz, isViewingRep } = useScope();
   const [products, setProducts] = useState<Product[]>([]);
   const [editing, setEditing] = useState<Product | null>(null);
   const [open, setOpen] = useState(false);
@@ -36,10 +36,10 @@ function ProdutosPage() {
   const [openReplenish, setOpenReplenish] = useState(false);
 
   const load = async () => {
-    // Matriz gerencia o estoque da matriz (owner_id nulo); representante, o próprio estoque.
+    // Representantes consultam o catálogo central; somente a matriz o administra.
     const { data } = await scopeProducts(
       supabase.from("products").select("*").order("name") as any,
-      productOwner,
+      null,
     );
     setProducts((data ?? []) as Product[]);
     const since = new Date(Date.now() - windowDays * 86400000).toISOString();
@@ -54,22 +54,11 @@ function ProdutosPage() {
     }
     setSalesByProduct(map);
   };
-  useEffect(() => { if (ownerId) load(); }, [windowDays, productOwner, ownerId]);
+  useEffect(() => { if (ownerId) load(); }, [windowDays, ownerId]);
 
   const save = async (form: Omit<Product, "id" | "stock_quantity"> & { id?: string }) => {
     if (isViewingRep) return toast.error("A consulta do representante é somente leitura.");
-    if (!isMatriz) {
-      if (!form.id) return toast.error("Os produtos são cadastrados pela matriz através das transferências.");
-      const { error } = await supabase
-        .from("products")
-        .update({ sale_price: form.sale_price })
-        .eq("id", form.id)
-        .eq("owner_id", ownerId);
-      if (error) return toast.error(error.message);
-      toast.success("Preço de saída atualizado");
-      setOpen(false); setEditing(null); load();
-      return;
-    }
+    if (!isMatriz) return toast.error("O catálogo é administrado pela matriz.");
     if (form.id) {
       const { error } = await supabase.from("products").update({
         name: form.name, cost_price: form.cost_price, sale_price: form.sale_price,
@@ -162,12 +151,12 @@ function ProdutosPage() {
         <div>
           <h2 className="text-2xl font-bold">Produtos</h2>
           <p className="text-sm text-muted-foreground">
-            {isMatriz ? "Estoque da matriz" : isViewingRep ? "Estoque do representante" : "Meu estoque"}
+            {isMatriz ? "Estoque e catálogo da matriz" : "Catálogo e disponibilidade da matriz"}
           </p>
         </div>
         <div className="flex gap-2">
-        <Button variant="outline" onClick={() => setOpenReplenish(true)}><Sparkles className="h-4 w-4 mr-2" /> Reposição Inteligente</Button>
-        <Button variant="outline" onClick={exportStock}><Download className="h-4 w-4 mr-2" /> Exportar Estoque</Button>
+        {isMatriz && <Button variant="outline" onClick={() => setOpenReplenish(true)}><Sparkles className="h-4 w-4 mr-2" /> Reposição Inteligente</Button>}
+        {isMatriz && <Button variant="outline" onClick={exportStock}><Download className="h-4 w-4 mr-2" /> Exportar Estoque</Button>}
           {isMatriz && (
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
@@ -187,22 +176,22 @@ function ProdutosPage() {
           <thead className="bg-secondary text-secondary-foreground">
             <tr>
               <th className="text-left p-3"><SortHeader label="Produto" sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
-              <th className="text-right p-3"><SortHeader label="Valor Entrada" sortKey="cost_price" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
+              {isMatriz && <th className="text-right p-3"><SortHeader label="Valor Entrada" sortKey="cost_price" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>}
               <th className="text-right p-3"><SortHeader label="Valor Saída" sortKey="sale_price" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
               <th className="text-right p-3"><SortHeader label="Estoque" sortKey="stock_quantity" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
-              <th className="text-right p-3"><SortHeader label="Alerta <=" sortKey="low_stock_threshold" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
-              <th className="text-right p-3">Ações</th>
+              {isMatriz && <th className="text-right p-3"><SortHeader label="Alerta <=" sortKey="low_stock_threshold" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>}
+              {isMatriz && <th className="text-right p-3">Ações</th>}
             </tr>
           </thead>
           <tbody>
             {sorted.map((p) => (
               <tr key={p.id} className="border-t hover:bg-muted/30">
                 <td className="p-3 font-medium">{p.name}</td>
-                <td className="p-3 text-right">{fmtBRL(p.cost_price)}</td>
+                {isMatriz && <td className="p-3 text-right">{fmtBRL(p.cost_price)}</td>}
                 <td className="p-3 text-right">{fmtBRL(p.sale_price)}</td>
                 <td className={"p-3 text-right font-semibold " + (p.stock_quantity <= p.low_stock_threshold ? "text-destructive" : "")}>{p.stock_quantity}</td>
-                <td className="p-3 text-right">{p.low_stock_threshold}</td>
-                <td className="p-3 text-right space-x-1">
+                {isMatriz && <td className="p-3 text-right">{p.low_stock_threshold}</td>}
+                {isMatriz && <td className="p-3 text-right space-x-1">
                    {!isViewingRep && (
                     <>
                        {isMatriz ? (
@@ -218,7 +207,7 @@ function ProdutosPage() {
                        {isMatriz && <Button size="icon" variant="ghost" onClick={() => remove(p.id)} aria-label={`Remover ${p.name}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
                     </>
                   )}
-                </td>
+                </td>}
               </tr>
             ))}
           </tbody>

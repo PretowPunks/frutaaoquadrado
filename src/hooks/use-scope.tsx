@@ -44,7 +44,7 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
     if (saved) setViewAsState(saved);
     supabase
       .from("rep_invites")
-      .select("email, name, accepted_user_id")
+      .select("email, name, accepted_user_id, cities")
       .not("accepted_user_id", "is", null)
       .then(({ data }) => {
         if (!active) return;

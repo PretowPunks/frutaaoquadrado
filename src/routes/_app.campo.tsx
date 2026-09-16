@@ -16,10 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MapPin, Play, Square, ShoppingCart, Snowflake, ShieldCheck, Search } from "lucide-react";
+import { MapPin, Play, Square, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { fmtBRL } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/campo")({
   head: () => ({
@@ -37,7 +35,6 @@ const CONSENT_VERSION = "v1";
 const MIN_INTERVAL_MS = 20000;
 
 type Shift = { id: string; started_at: string; ended_at: string | null; start_city: string | null };
-type Product = { id: string; name: string; sale_price: number; cost_price: number; stock_quantity: number };
 
 function CampoPage() {
   const { user, isAdmin } = useAuth();
@@ -46,31 +43,9 @@ function CampoPage() {
   const [shift, setShift] = useState<Shift | null>(null);
   const [points, setPoints] = useState(0);
   const [city, setCity] = useState("");
-  const [products, setProducts] = useState<Product[]>([]);
-  const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
-  const [q, setQ] = useState("");
-
-  const [productId, setProductId] = useState("");
-  const [qty, setQty] = useState("1");
-  const [price, setPrice] = useState("");
-  const [customerId, setCustomerId] = useState("none");
-  const [status, setStatus] = useState<"paid" | "unpaid">("paid");
-  const [saving, setSaving] = useState(false);
 
   const watchRef = useRef<number | null>(null);
   const lastRef = useRef(0);
-
-  const loadProducts = useCallback(async () => {
-    if (!user) return;
-    // A matriz vende direto do estoque da matriz (owner_id nulo); o representante, do estoque móvel dele.
-    const base = supabase
-      .from("products")
-      .select("id, name, sale_price, cost_price, stock_quantity")
-      .order("name");
-    const { data } = await (isAdmin ? base.is("owner_id", null) : base.eq("owner_id", user.id));
-    setProducts((data ?? []) as Product[]);
-  }, [user, isAdmin]);
-
 
   useEffect(() => {
     if (!user) return;
@@ -91,16 +66,8 @@ function CampoPage() {
         .limit(1)
         .maybeSingle();
       setShift((s as Shift) ?? null);
-
-      const { data: cust } = await supabase
-        .from("customers")
-        .select("id, name")
-        .eq("owner_id", user.id)
-        .order("name");
-      setCustomers((cust ?? []) as { id: string; name: string }[]);
     })();
-    loadProducts();
-  }, [user, loadProducts]);
+  }, [user]);
 
   // Contagem de pontos da jornada atual
   useEffect(() => {
@@ -184,45 +151,6 @@ function CampoPage() {
     toast.success("Expediente encerrado — rastreamento interrompido.");
   };
 
-  const selected = products.find((p) => p.id === productId);
-  useEffect(() => {
-    if (selected) setPrice(String(selected.sale_price));
-  }, [productId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const registerSale = async () => {
-    if (!selected) return toast.error("Selecione um produto");
-    const quantity = Number(qty);
-    const unit = Number(price);
-    if (!Number.isFinite(quantity) || quantity <= 0) return toast.error("Quantidade inválida");
-    if (!Number.isFinite(unit) || unit < 0) return toast.error("Valor inválido");
-    if (quantity > selected.stock_quantity)
-      return toast.error(
-        `${isAdmin ? "Estoque da matriz" : "Estoque móvel"} insuficiente (${selected.stock_quantity} un.)`,
-      );
-
-    setSaving(true);
-    const { error } = await supabase.from("sales").insert({
-      product_id: selected.id,
-      customer_id: customerId === "none" ? null : customerId,
-      quantity,
-      unit_sale_price: unit,
-      unit_cost: selected.cost_price,
-      status,
-      created_by: user?.id ?? null,
-      owner_id: user?.id ?? null,
-    });
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Venda registrada");
-    setQty("1");
-    setProductId("");
-    setCustomerId("none");
-    loadProducts();
-  };
-
-  const filtered = products.filter((p) => p.name.toLowerCase().includes(q.toLowerCase().trim()));
-  const stockUnits = products.reduce((a, p) => a + p.stock_quantity, 0);
-
   return (
     <div className="space-y-5 max-w-2xl mx-auto pb-10">
       <div>
@@ -230,7 +158,7 @@ function CampoPage() {
         <p className="text-sm text-muted-foreground">
           {isAdmin
             ? "Jornada e venda rápida da matriz — as vendas saem do estoque da matriz."
-            : "Painel de rua — jornada, estoque móvel e venda rápida."}
+            : "Jornada de atendimento com registro de rota por GPS."}
         </p>
       </div>
 
@@ -275,113 +203,6 @@ function CampoPage() {
             </p>
           </>
         )}
-      </Card>
-
-      <Card className="p-5 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Snowflake className="h-5 w-5 text-primary" />
-            <span className="font-semibold">{isAdmin ? "Estoque da matriz" : "Estoque móvel"}</span>
-          </div>
-          <span className="text-sm text-muted-foreground">
-            {stockUnits} un. {isAdmin ? "na matriz" : "no carro/freezer"}
-          </span>
-        </div>
-        <div className="relative">
-          <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Buscar sabor..." value={q} onChange={(e) => setQ(e.target.value)} />
-        </div>
-        <ul className="divide-y max-h-72 overflow-auto">
-          {filtered.map((p) => (
-            <li key={p.id} className="py-2 flex items-center justify-between text-sm">
-              <span>{p.name}</span>
-              <span className={p.stock_quantity > 0 ? "font-semibold" : "font-semibold text-destructive"}>
-                {p.stock_quantity} un. · {fmtBRL(Number(p.sale_price))}
-              </span>
-            </li>
-          ))}
-          {filtered.length === 0 && (
-            <li className="py-3 text-sm text-muted-foreground">
-              {isAdmin
-                ? "Nenhum item no estoque da matriz. Registre uma entrada."
-                : "Nenhum item. Peça uma transferência de estoque à matriz."}
-            </li>
-          )}
-        </ul>
-      </Card>
-
-      <Card className="p-5 space-y-3">
-        <div className="flex items-center gap-2">
-          <ShoppingCart className="h-5 w-5 text-primary" />
-          <span className="font-semibold">Venda rápida</span>
-        </div>
-
-        <div>
-          <Label>Produto</Label>
-          <Select value={productId} onValueChange={setProductId}>
-            <SelectTrigger><SelectValue placeholder="Selecione o sabor" /></SelectTrigger>
-            <SelectContent>
-              {products.map((p) => (
-                <SelectItem key={p.id} value={p.id} disabled={p.stock_quantity <= 0}>
-                  {p.name} ({p.stock_quantity} un.)
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Quantidade</Label>
-            <Input type="number" min="1" inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} />
-          </div>
-          <div>
-            <Label>Valor unitário</Label>
-            <Input type="number" step="0.01" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
-          </div>
-        </div>
-
-        <div>
-          <Label>Cliente (opcional)</Label>
-          <Select value={customerId} onValueChange={setCustomerId}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Sem cliente</SelectItem>
-              {customers.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant={status === "paid" ? "default" : "outline"}
-            className="flex-1"
-            onClick={() => setStatus("paid")}
-          >
-            Pago
-          </Button>
-          <Button
-            type="button"
-            variant={status === "unpaid" ? "default" : "outline"}
-            className="flex-1"
-            onClick={() => setStatus("unpaid")}
-          >
-            A pagar
-          </Button>
-        </div>
-
-        {selected && (
-          <p className="text-sm text-muted-foreground">
-            Total: <strong className="text-foreground">{fmtBRL(Number(price || 0) * Number(qty || 0))}</strong>
-          </p>
-        )}
-
-        <Button className="w-full h-12 text-base" onClick={registerSale} disabled={saving}>
-          Registrar venda
-        </Button>
       </Card>
 
       <Dialog open={consent === false}>
