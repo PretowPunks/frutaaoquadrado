@@ -281,9 +281,9 @@ class MockQueryBuilder implements PromiseLike<Result> {
       this.applySideEffects(db, matched, []);
       db[this.table] = tableRows.filter((row) => !this.matches(row)) as never;
       if (this.table === "supplier_payments") {
-        db.supplier_payment_items = (db.supplier_payment_items as Row[]).filter(
-          (item) => !matched.some((payment) => payment.id === item.payment_id),
-        );
+        (db as Record<string, Row[]>).supplier_payment_items = (
+          db.supplier_payment_items as Row[]
+        ).filter((item) => !matched.some((payment) => payment.id === item.payment_id));
       }
       writeDb(db);
       return { data: null, error: null };
@@ -312,7 +312,7 @@ export function resetMockData() {
   writeDb(createMockDatabase());
 }
 
-export const supabase = {
+export const supabase: any = {
   from(table: keyof MockDatabase) {
     return new MockQueryBuilder(table);
   },
