@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { useSort, SortHeader } from "@/hooks/use-sort";
 import { useScope, scopeProducts } from "@/hooks/use-scope";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/_app/produtos")({ component: ProdutosPage });
 
@@ -25,7 +26,8 @@ type Product = {
 
 function ProdutosPage() {
   
-  const { ownerId, isMatriz, isViewingRep } = useScope();
+  const { ownerId } = useScope();
+  const { isAdmin } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [editing, setEditing] = useState<Product | null>(null);
   const [open, setOpen] = useState(false);
@@ -57,8 +59,7 @@ function ProdutosPage() {
   useEffect(() => { if (ownerId) load(); }, [windowDays, ownerId]);
 
   const save = async (form: Omit<Product, "id" | "stock_quantity"> & { id?: string }) => {
-    if (isViewingRep) return toast.error("A consulta do representante é somente leitura.");
-    if (!isMatriz) return toast.error("O catálogo é administrado pela matriz.");
+    if (!isAdmin) return toast.error("O catálogo é administrado pela matriz.");
     if (form.id) {
       const { error } = await supabase.from("products").update({
         name: form.name, cost_price: form.cost_price, sale_price: form.sale_price,
@@ -70,7 +71,7 @@ function ProdutosPage() {
       const { error } = await supabase.from("products").insert({
         name: form.name, cost_price: form.cost_price, sale_price: form.sale_price,
         low_stock_threshold: form.low_stock_threshold,
-        owner_id: isMatriz ? null : ownerId,
+        owner_id: null,
       });
       if (error) return toast.error(error.message);
       toast.success("Produto cadastrado");
@@ -151,13 +152,13 @@ function ProdutosPage() {
         <div>
           <h2 className="text-2xl font-bold">Produtos</h2>
           <p className="text-sm text-muted-foreground">
-            {isMatriz ? "Estoque e catálogo da matriz" : "Catálogo e disponibilidade da matriz"}
+            {isAdmin ? "Estoque e catálogo da matriz" : "Catálogo e disponibilidade da matriz"}
           </p>
         </div>
         <div className="flex gap-2">
-        {isMatriz && <Button variant="outline" onClick={() => setOpenReplenish(true)}><Sparkles className="h-4 w-4 mr-2" /> Reposição Inteligente</Button>}
-        {isMatriz && <Button variant="outline" onClick={exportStock}><Download className="h-4 w-4 mr-2" /> Exportar Estoque</Button>}
-          {isMatriz && (
+        {isAdmin && <Button variant="outline" onClick={() => setOpenReplenish(true)}><Sparkles className="h-4 w-4 mr-2" /> Reposição Inteligente</Button>}
+        {isAdmin && <Button variant="outline" onClick={exportStock}><Download className="h-4 w-4 mr-2" /> Exportar Estoque</Button>}
+          {isAdmin && (
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Novo Produto</Button>
@@ -176,37 +177,24 @@ function ProdutosPage() {
           <thead className="bg-secondary text-secondary-foreground">
             <tr>
               <th className="text-left p-3"><SortHeader label="Produto" sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
-              {isMatriz && <th className="text-right p-3"><SortHeader label="Valor Entrada" sortKey="cost_price" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>}
+              {isAdmin && <th className="text-right p-3"><SortHeader label="Valor Entrada" sortKey="cost_price" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>}
               <th className="text-right p-3"><SortHeader label="Valor Saída" sortKey="sale_price" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
               <th className="text-right p-3"><SortHeader label="Estoque" sortKey="stock_quantity" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
-              {isMatriz && <th className="text-right p-3"><SortHeader label="Alerta <=" sortKey="low_stock_threshold" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>}
-              {isMatriz && <th className="text-right p-3">Ações</th>}
+              {isAdmin && <th className="text-right p-3"><SortHeader label="Alerta <=" sortKey="low_stock_threshold" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>}
+              {isAdmin && <th className="text-right p-3">Ações</th>}
             </tr>
           </thead>
           <tbody>
             {sorted.map((p) => (
               <tr key={p.id} className="border-t hover:bg-muted/30">
                 <td className="p-3 font-medium">{p.name}</td>
-                {isMatriz && <td className="p-3 text-right">{fmtBRL(p.cost_price)}</td>}
+                {isAdmin && <td className="p-3 text-right">{fmtBRL(p.cost_price)}</td>}
                 <td className="p-3 text-right">{fmtBRL(p.sale_price)}</td>
                 <td className={"p-3 text-right font-semibold " + (p.stock_quantity <= p.low_stock_threshold ? "text-destructive" : "")}>{p.stock_quantity}</td>
-                {isMatriz && <td className="p-3 text-right">{p.low_stock_threshold}</td>}
-                {isMatriz && <td className="p-3 text-right space-x-1">
-                   {!isViewingRep && (
-                    <>
-                       {isMatriz ? (
-                         <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }} aria-label={`Editar ${p.name}`}><Pencil className="h-4 w-4" /></Button>
-                       ) : (
-                         <Dialog open={open && editing?.id === p.id} onOpenChange={(next) => { setOpen(next); if (!next) setEditing(null); }}>
-                           <DialogTrigger asChild>
-                             <Button size="icon" variant="ghost" onClick={() => setEditing(p)} aria-label={`Editar preço de saída de ${p.name}`}><Pencil className="h-4 w-4" /></Button>
-                           </DialogTrigger>
-                           <ProductDialog initial={editing} onSave={save} isMatriz={false} />
-                         </Dialog>
-                       )}
-                       {isMatriz && <Button size="icon" variant="ghost" onClick={() => remove(p.id)} aria-label={`Remover ${p.name}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>}
-                    </>
-                  )}
+                {isAdmin && <td className="p-3 text-right">{p.low_stock_threshold}</td>}
+                {isAdmin && <td className="p-3 text-right space-x-1">
+                  <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }} aria-label={`Editar ${p.name}`}><Pencil className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => remove(p.id)} aria-label={`Remover ${p.name}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </td>}
               </tr>
             ))}

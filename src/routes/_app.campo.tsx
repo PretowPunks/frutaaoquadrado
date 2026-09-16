@@ -23,9 +23,9 @@ export const Route = createFileRoute("/_app/campo")({
   head: () => ({
     meta: [
       { title: "Expediente do Vendedor — Fruta²" },
-      { name: "description", content: "Inicie o expediente, acompanhe seu estoque móvel e registre vendas na rua." },
+      { name: "description", content: "Inicie o expediente e registre sua rota de atendimento com privacidade." },
       { property: "og:title", content: "Expediente do Vendedor — Fruta²" },
-      { property: "og:description", content: "Jornada com rota por GPS, estoque móvel e venda rápida." },
+      { property: "og:description", content: "Jornada com rota por GPS e rastreamento limitado ao expediente." },
     ],
   }),
   component: CampoPage,

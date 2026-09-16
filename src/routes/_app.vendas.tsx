@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Search, Plus, X } from "lucide-react";
 import { useSort, SortHeader } from "@/hooks/use-sort";
 import { useScope, scopeProducts } from "@/hooks/use-scope";
+import { useAuth } from "@/hooks/use-auth";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -26,6 +27,7 @@ type CartItem = { product_id: string; quantity: number; unit_sale_price: number 
 
 function VendasPage() {
   const { productOwner, ownerId, isMatriz, isViewingRep } = useScope();
+  const { isAdmin } = useAuth();
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [sales, setSales] = useState<any[]>([]);
@@ -41,7 +43,7 @@ function VendasPage() {
 
   const load = async () => {
     const [{ data: p }, { data: c }, { data: s }] = await Promise.all([
-      scopeProducts(supabase.from("products").select("*").order("name") as any, productOwner),
+      scopeProducts(supabase.from("products").select("*").order("name") as any, isAdmin ? null : productOwner),
       supabase.from("customers").select("*").eq("owner_id", ownerId).order("name"),
       supabase.from("sales").select("*, products(name), customers(name)").eq("owner_id", ownerId).order("created_at", { ascending: false }).limit(500),
     ]);
@@ -65,7 +67,7 @@ function VendasPage() {
   const cartTotal = cart.reduce((a, it) => a + Number(it.unit_sale_price) * Number(it.quantity), 0);
 
   const submit = async () => {
-    if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
+    if (isViewingRep && !isAdmin) return toast.error("Você está apenas consultando os dados do representante.");
     if (status === "scheduled" && !deliveryDate) return toast.error("Informe a data de entrega");
     if (paymentMethod === "boleto" && !boletoDue) return toast.error("Informe o vencimento do boleto");
     if (cart.length === 0) return toast.error("Adicione ao menos um produto");
@@ -103,7 +105,7 @@ function VendasPage() {
   };
 
   const setSaleStatus = async (s: any, next: "paid" | "unpaid" | "scheduled") => {
-    if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
+    if (isViewingRep && !isAdmin) return toast.error("Você está apenas consultando os dados do representante.");
     const patch: any = { status: next };
     if (next !== "scheduled") patch.delivery_date = null;
     const { error } = await supabase.from("sales").update(patch).eq("id", s.id);
@@ -112,7 +114,7 @@ function VendasPage() {
   };
 
   const removeSale = async (s: any) => {
-    if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
+    if (isViewingRep && !isAdmin) return toast.error("Você está apenas consultando os dados do representante.");
     const { error } = await supabase.from("sales").delete().eq("id", s.id);
     if (error) return toast.error(error.message);
     toast.success("Venda excluída, estoque restaurado");
@@ -120,7 +122,7 @@ function VendasPage() {
   };
 
   const confirmBoleto = async (s: any, confirm: boolean) => {
-    if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
+    if (isViewingRep && !isAdmin) return toast.error("Você está apenas consultando os dados do representante.");
     const { error } = await (supabase as any)
       .from("sales")
       .update({
@@ -389,7 +391,7 @@ function VendasPage() {
                 <td className="p-3 text-right">{fmtBRL(s.unit_sale_price)}</td>
                 <td className="p-3 text-right font-semibold">{fmtBRL(Number(s.unit_sale_price) * s.quantity)}</td>
                 <td className="p-3 text-center">
-                  {isViewingRep ? (
+                  {isViewingRep && !isAdmin ? (
                     <Badge
                       variant={
                         s.payment_method === "boleto" && !s.boleto_paid_at ? "outline" :
@@ -426,7 +428,7 @@ function VendasPage() {
                   </DropdownMenu>}
                 </td>
                 <td className="p-3 text-center">
-                  {!isViewingRep && <AlertDialog>
+                  {(!isViewingRep || isAdmin) && <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4" /></Button>
                     </AlertDialogTrigger>
