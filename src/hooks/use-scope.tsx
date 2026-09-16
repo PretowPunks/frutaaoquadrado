@@ -31,10 +31,14 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
   const [viewAs, setViewAsState] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
+
     if (!isAdmin) {
       setReps([]);
       setViewAsState(null);
-      return;
+      return () => {
+        active = false;
+      };
     }
     const saved = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
     if (saved) setViewAsState(saved);
@@ -43,16 +47,21 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
       .select("email, name, accepted_user_id")
       .not("accepted_user_id", "is", null)
       .then(({ data }) => {
+        if (!active) return;
         const activeReps = ((data ?? []) as any[]).map((i) => ({
-            user_id: i.accepted_user_id as string,
-            label: i.name ? `${i.name} (${i.email})` : i.email,
-          }));
+          user_id: i.accepted_user_id as string,
+          label: i.name ? `${i.name} (${i.email})` : i.email,
+        }));
         setReps(activeReps);
         if (saved && !activeReps.some((rep) => rep.user_id === saved)) {
           setViewAsState(null);
           window.localStorage.removeItem(STORAGE_KEY);
         }
       });
+
+    return () => {
+      active = false;
+    };
   }, [isAdmin]);
 
   const setViewAs = (id: string | null) => {
@@ -92,6 +101,11 @@ export function useScope() {
 }
 
 /** Aplica o filtro de catálogo/estoque: null = estoque da matriz */
-export function scopeProducts<T extends { is: any; eq: any }>(query: T, productOwner: string | null): T {
-  return (productOwner === null ? query.is("owner_id", null) : query.eq("owner_id", productOwner)) as T;
+export function scopeProducts<T extends { is: any; eq: any }>(
+  query: T,
+  productOwner: string | null,
+): T {
+  return (
+    productOwner === null ? query.is("owner_id", null) : query.eq("owner_id", productOwner)
+  ) as T;
 }
