@@ -8,17 +8,27 @@ import { toast } from "sonner";
 import logoAsset from "@/assets/fruta2-logo.png.asset.json";
 
 export const Route = createFileRoute("/login")({
+  head: () => ({
+    meta: [
+      { title: "Entrar — Fruta²" },
+      { name: "description", content: "Acesse o sistema de gestão da Fruta²." },
+      { property: "og:title", content: "Entrar — Fruta²" },
+      { property: "og:description", content: "Acesse o sistema de gestão da Fruta²." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: LoginPage,
 });
 
 function LoginPage() {
-  const { session, loading } = useAuth();
+  const { session, loading, roleLoading } = useAuth();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && session) navigate({ to: "/" });
-  }, [session, loading, navigate]);
+    if (!loading && !roleLoading && session) navigate({ to: "/", replace: true });
+  }, [session, loading, roleLoading, navigate]);
 
   const handleGoogle = async () => {
     setBusy(true);
@@ -31,7 +41,8 @@ function LoginPage() {
       return;
     }
     if (result.redirected) return;
-    navigate({ to: "/" });
+    // The auth listener validates the session and redirects only after the role is ready.
+    setBusy(false);
   };
 
   return (

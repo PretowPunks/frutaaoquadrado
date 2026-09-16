@@ -31,10 +31,14 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
   const [viewAs, setViewAsState] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
+
     if (!isAdmin) {
       setReps([]);
       setViewAsState(null);
-      return;
+      return () => {
+        active = false;
+      };
     }
     const saved = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
     if (saved) setViewAsState(saved);
@@ -43,6 +47,7 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
       .select("email, name, accepted_user_id")
       .not("accepted_user_id", "is", null)
       .then(({ data }) => {
+        if (!active) return;
         const activeReps = ((data ?? []) as any[]).map((i) => ({
             user_id: i.accepted_user_id as string,
             label: i.name ? `${i.name} (${i.email})` : i.email,
@@ -53,6 +58,10 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
           window.localStorage.removeItem(STORAGE_KEY);
         }
       });
+
+    return () => {
+      active = false;
+    };
   }, [isAdmin]);
 
   const setViewAs = (id: string | null) => {

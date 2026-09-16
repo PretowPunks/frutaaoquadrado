@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, Outlet } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/use-auth";
 import { ScopeProvider, useScope } from "@/hooks/use-scope";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -12,27 +12,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useEffect } from "react";
 
 export const Route = createFileRoute("/_app")({
+  ssr: false,
   component: AppLayout,
 });
 
 function AppLayout() {
   const { session, loading, role, roleLoading, user, signOut } = useAuth();
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!loading && !session) navigate({ to: "/login" });
-  }, [session, loading, navigate]);
-
-  if (loading || !session || roleLoading) {
+  if (loading || (session && roleLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center text-muted-foreground">
         Carregando...
       </div>
     );
   }
+
+  if (!session) return <Navigate to="/login" replace />;
 
   if (!role) {
     return (
