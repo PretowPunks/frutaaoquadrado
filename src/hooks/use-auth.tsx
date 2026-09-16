@@ -10,7 +10,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/mock-client";
 
 type Role = "admin" | "user" | null;
 
@@ -21,6 +21,7 @@ interface AuthContextValue {
   isAdmin: boolean;
   roleLoading: boolean;
   loading: boolean;
+  signInAs: (role: Exclude<Role, null>) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -168,6 +169,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [clearAuthState, navigate, queryClient, router]);
 
+  const signInAs = useCallback(
+    async (nextRole: Exclude<Role, null>) => {
+      const { mockSignIn } = await import("@/lib/mock-client");
+      const nextSession = mockSignIn(nextRole);
+      await resolveSession(nextSession);
+      await navigate({ to: nextRole === "admin" ? "/" : "/campo", replace: true });
+      await router.invalidate();
+    },
+    [navigate, resolveSession, router],
+  );
+
   return (
     <AuthContext.Provider
       value={{
@@ -177,6 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin: role === "admin",
         roleLoading,
         loading,
+        signInAs,
         signOut,
       }}
     >
