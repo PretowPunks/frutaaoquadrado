@@ -1,19 +1,17 @@
-# Ajuste global de interface mobile e identidade Fruta²
+# Corrigir navegação e autenticação
 
 ## Objetivo
-Aplicar a logo enviada, alinhar o tema às cores da marca e melhorar a experiência global em smartphones, mantendo as regras e os dados das telas intactos.
+Impedir a tela de erro ao entrar, sair ou atualizar a aplicação, garantindo que páginas privadas só sejam abertas após a sessão e a permissão estarem resolvidas.
 
 ## Implementação
-- Enviar a logo para os arquivos de mídia do projeto, exibi-la no menu e no acesso ao sistema, e criar um ícone de navegador derivado dela.
-- Atualizar somente os tokens globais de cor para usar preto, laranja e verde da marca, com superfícies claras e contraste acessível.
-- Ajustar os componentes globais de layout para respeitar a área segura do celular, evitar largura excedente, manter alvos de toque confortáveis e adaptar menus e janelas à altura da tela.
-- Tornar o componente global de seleção pesquisável: ao abrir qualquer lista, exibir um campo para digitar e filtrar as opções, preservando valor, grupos, itens desabilitados e seleção por toque/teclado.
-- Melhorar globalmente tabelas e janelas para telas estreitas, mantendo rolagem horizontal somente dentro da própria tabela quando as colunas realmente não couberem.
-
-## Limites
-- Nenhuma regra de estoque, venda, transferência, repasse ou acesso será alterada.
-- Não serão redesenhadas páginas individualmente nem criados novos fluxos.
+- Tornar o estado de autenticação previsível, com uma única inicialização de sessão, descarte seguro de respostas antigas e limpeza imediata de sessão/permissão no logout.
+- Mover a decisão de acesso do efeito posterior à renderização para a rota protegida, exibindo carregamento enquanto sessão e perfil ainda estão sendo verificados.
+- Redirecionar usuários sem sessão diretamente para `/login`, sem montar telas privadas nem disparar consultas durante o logout.
+- Sincronizar entrada e saída com o roteador e limpar dados em memória antes do redirecionamento, evitando conteúdo antigo e novas consultas sem autenticação.
+- Ajustar a tela de login para aguardar a autenticação completa antes de seguir para a página inicial.
 
 ## Validação
-- Conferir acesso, menu, seleção pesquisável e uma tela com tabela/janela em viewport vertical de smartphone.
-- Confirmar que o projeto compila e que não surgiram erros no navegador.
+- Testar atualização direta em uma página privada com sessão válida.
+- Testar atualização e acesso privado sem sessão.
+- Testar login e logout completos, incluindo o botão voltar após sair.
+- Confirmar ausência da tela “This page didn't load”, loops e erros no navegador.
