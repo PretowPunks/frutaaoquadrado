@@ -74,7 +74,7 @@ function VendasPage() {
       const p = products.find((x) => x.id === it.product_id);
       if (!p) return toast.error(`Linha ${i + 1}: selecione um produto`);
       if (it.quantity < 1) return toast.error(`Linha ${i + 1}: quantidade inválida`);
-      if (it.quantity > p.stock_quantity) return toast.error(`${p.name}: estoque insuficiente (${p.stock_quantity})`);
+      if (status !== "scheduled" && it.quantity > p.stock_quantity) return toast.error(`${p.name}: estoque insuficiente (${p.stock_quantity})`);
       rows.push({
         product_id: p.id,
         quantity: it.quantity,
@@ -295,7 +295,7 @@ function VendasPage() {
           <Button onClick={submit} className="w-full">Registrar Venda</Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Vendas agendadas dão baixa no estoque imediatamente. Clique na etiqueta para concluir como Pago / A Pagar, ou exclua para devolver ao estoque.
+          Pedidos agendados reservam a intenção de compra sem baixar o estoque. A baixa ocorre quando a Matriz confirma a conclusão.
         </p>
       </Card>}
 
@@ -434,7 +434,9 @@ function VendasPage() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Excluir venda?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          O produto voltará ao estoque automaticamente. Esta ação não pode ser desfeita.
+                          {s.status === "scheduled"
+                            ? "O pedido será removido sem alterar o estoque. Esta ação não pode ser desfeita."
+                            : "O produto voltará ao estoque automaticamente. Esta ação não pode ser desfeita."}
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>

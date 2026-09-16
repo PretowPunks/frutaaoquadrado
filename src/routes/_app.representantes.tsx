@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Trash2, Search, UserCheck, Clock } from "lucide-react";
+import { Plus, Trash2, Search, UserCheck, Clock, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { useSort, SortHeader } from "@/hooks/use-sort";
@@ -21,6 +21,7 @@ type Invite = {
   accepted_at: string | null;
   accepted_user_id: string | null;
   created_at: string;
+  cities: string[];
 };
 
 type Row = Invite & { sold: number; cost: number; paid: number; due: number };
@@ -32,12 +33,14 @@ function RepresentantesPage() {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [citiesText, setCitiesText] = useState("");
+  const [editing, setEditing] = useState<Invite | null>(null);
   const [q, setQ] = useState("");
 
   const load = async () => {
     const { data: inv, error } = await supabase
       .from("rep_invites")
-      .select("id, email, name, accepted_at, accepted_user_id, created_at")
+      .select("id, email, name, accepted_at, accepted_user_id, created_at, cities")
       .order("created_at", { ascending: false });
     if (error) return toast.error(error.message);
     const list = (inv ?? []) as Invite[];
@@ -76,14 +79,29 @@ function RepresentantesPage() {
   const invite = async () => {
     const e = email.trim().toLowerCase();
     if (!e.includes("@")) return toast.error("Informe um e-mail válido");
+    const cities = Array.from(new Set(citiesText.split(",").map((city) => city.trim()).filter(Boolean)));
+    if (cities.length === 0) return toast.error("Informe ao menos uma cidade de atuação");
     const { error } = await supabase
       .from("rep_invites")
-      .insert({ email: e, name: name.trim() || null, invited_by: user?.id ?? null });
+      .insert({ email: e, name: name.trim() || null, cities, invited_by: user?.id ?? null });
     if (error) return toast.error(error.message);
     toast.success("Representante convidado. Ele já pode entrar com o Google.");
     setEmail("");
     setName("");
+    setCitiesText("");
     setOpen(false);
+    load();
+  };
+
+  const saveCities = async () => {
+    if (!editing) return;
+    const cities = Array.from(new Set(citiesText.split(",").map((city) => city.trim()).filter(Boolean)));
+    if (cities.length === 0) return toast.error("Informe ao menos uma cidade de atuação");
+    const { error } = await supabase.from("rep_invites").update({ cities }).eq("id", editing.id);
+    if (error) return toast.error(error.message);
+    toast.success("Cidades de atuação atualizadas");
+    setEditing(null);
+    setCitiesText("");
     load();
   };
 
@@ -98,7 +116,7 @@ function RepresentantesPage() {
   const filtered = rows.filter((r) => {
     const t = q.toLowerCase().trim();
     if (!t) return true;
-    return [r.email, r.name ?? "", r.accepted_at ? "ativo" : "pendente", fmtBRL(r.due)].some((v) =>
+    return [r.email, r.name ?? "", r.cities.join(" "), r.accepted_at ? "ativo" : "pendente", fmtBRL(r.due)].some((v) =>
       v.toLowerCase().includes(t),
     );
   });
@@ -109,6 +127,7 @@ function RepresentantesPage() {
       name: (r) => r.name ?? r.email,
       email: (r) => r.email,
       status: (r) => (r.accepted_at ? "ativo" : "pendente"),
+      cities: (r) => r.cities.join(", "),
       sold: (r) => r.sold,
       cost: (r) => r.cost,
       paid: (r) => r.paid,
@@ -148,9 +167,14 @@ function RepresentantesPage() {
                 <Label>Nome (opcional)</Label>
                 <Input value={name} onChange={(e) => setName(e.target.value)} />
               </div>
+              <div>
+                <Label>Cidades de atuação</Label>
+                <Input value={citiesText} onChange={(e) => setCitiesText(e.target.value)} placeholder="Feira de Santana, Serrinha" />
+                <p className="mt-1 text-xs text-muted-foreground">Separe várias cidades por vírgula.</p>
+              </div>
               <p className="text-xs text-muted-foreground">
-                Ao entrar com esse e-mail, o representante recebe automaticamente uma cópia do catálogo de produtos
-                (estoque zerado) e passa a gerenciar apenas o próprio estoque, clientes, vendas e repasses.
+                Ao entrar com esse e-mail, o representante poderá consultar o catálogo, cumprir a jornada e atender
+                clientes somente nas cidades atribuídas.
               </p>
             </div>
             <DialogFooter>
@@ -187,6 +211,7 @@ function RepresentantesPage() {
               <th className="text-left p-3"><SortHeader label="Nome" sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
               <th className="text-left p-3"><SortHeader label="E-mail" sortKey="email" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
               <th className="text-left p-3"><SortHeader label="Situação" sortKey="status" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
+              <th className="text-left p-3"><SortHeader label="Cidades" sortKey="cities" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
               <th className="text-right p-3"><SortHeader label="Vendas" sortKey="sold" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
               <th className="text-right p-3"><SortHeader label="Custo (devido)" sortKey="cost" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
               <th className="text-right p-3"><SortHeader label="Repassado" sortKey="paid" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
@@ -196,7 +221,7 @@ function RepresentantesPage() {
           </thead>
           <tbody>
             {sorted.length === 0 ? (
-              <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Nenhum representante convidado ainda.</td></tr>
+              <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">Nenhum representante convidado ainda.</td></tr>
             ) : sorted.map((r) => (
               <tr key={r.id} className="border-t hover:bg-muted/30">
                 <td className="p-3 font-medium">{r.name ?? "—"}</td>
@@ -212,11 +237,15 @@ function RepresentantesPage() {
                     </span>
                   )}
                 </td>
+                <td className="p-3">{r.cities.length > 0 ? r.cities.join(", ") : "Não definidas"}</td>
                 <td className="p-3 text-right">{fmtBRL(r.sold)}</td>
                 <td className="p-3 text-right">{fmtBRL(r.cost)}</td>
                 <td className="p-3 text-right">{fmtBRL(r.paid)}</td>
                 <td className={"p-3 text-right font-semibold " + (r.due > 0 ? "text-destructive" : "")}>{fmtBRL(r.due)}</td>
                 <td className="p-3 text-right">
+                  <Button size="icon" variant="ghost" onClick={() => { setEditing(r); setCitiesText(r.cities.join(", ")); }} aria-label={`Editar cidades de ${r.name ?? r.email}`}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                   <Button size="icon" variant="ghost" onClick={() => remove(r)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
@@ -226,6 +255,18 @@ function RepresentantesPage() {
           </tbody>
         </table>
       </Card>
+
+      <Dialog open={!!editing} onOpenChange={(next) => { if (!next) setEditing(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar cidades de atuação</DialogTitle></DialogHeader>
+          <div>
+            <Label>Cidades</Label>
+            <Input value={citiesText} onChange={(e) => setCitiesText(e.target.value)} placeholder="Feira de Santana, Serrinha" />
+            <p className="mt-1 text-xs text-muted-foreground">Separe várias cidades por vírgula.</p>
+          </div>
+          <DialogFooter><Button onClick={saveCities}>Salvar cidades</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
