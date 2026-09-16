@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
-export type Rep = { user_id: string; label: string };
+export type Rep = { user_id: string; label: string; cities: string[] };
 
 interface ScopeValue {
   /** Representantes ativos (somente carregado para a matriz) */
@@ -51,6 +51,7 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
         const activeReps = ((data ?? []) as any[]).map((i) => ({
           user_id: i.accepted_user_id as string,
           label: i.name ? `${i.name} (${i.email})` : i.email,
+          cities: i.cities ?? [],
         }));
         setReps(activeReps);
         if (saved && !activeReps.some((rep) => rep.user_id === saved)) {

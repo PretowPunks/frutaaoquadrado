@@ -28,12 +28,18 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import logoAsset from "@/assets/fruta2-logo.png.asset.json";
 
-const baseItems = [
+const adminOperationItems = [
   { title: "Painel", url: "/", icon: LayoutDashboard },
   { title: "Meu Expediente", url: "/campo", icon: MapPin },
   { title: "Produtos", url: "/produtos", icon: Package },
   { title: "Vendas", url: "/vendas", icon: ShoppingCart },
   { title: "Repasses", url: "/repasses", icon: Wallet },
+  { title: "Clientes", url: "/clientes", icon: Users },
+];
+
+const representativeItems = [
+  { title: "Expediente", url: "/campo", icon: MapPin },
+  { title: "Produtos", url: "/produtos", icon: Package },
   { title: "Clientes", url: "/clientes", icon: Users },
 ];
 
@@ -49,8 +55,8 @@ export function AppSidebar() {
   const path = useRouterState({ select: (r) => r.location.pathname });
   const { user, isAdmin, signOut } = useAuth();
   const items = isAdmin
-    ? [...baseItems.slice(0, 3), entradasItem, ...baseItems.slice(3)]
-    : baseItems;
+    ? [...adminOperationItems.slice(0, 3), entradasItem, ...adminOperationItems.slice(3)]
+    : representativeItems;
 
   return (
     <Sidebar collapsible="icon">
