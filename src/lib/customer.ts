@@ -70,7 +70,8 @@ export function customerAddress(customer: Customer) {
 }
 
 export function validateCustomer(form: CustomerForm) {
-  if (Object.values(form).some((value) => !value.trim())) return "Preencha todos os campos obrigatórios";
+  if (Object.values(form).some((value) => !value.trim()))
+    return "Preencha todos os campos obrigatórios";
   const phoneLength = onlyDigits(form.phone).length;
   if (phoneLength !== 10 && phoneLength !== 11) return "Informe um telefone válido";
   const documentLength = onlyDigits(form.documentNumber).length;

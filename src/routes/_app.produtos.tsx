@@ -5,7 +5,14 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2, Download, Search, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
@@ -25,7 +32,6 @@ type Product = {
 };
 
 function ProdutosPage() {
-  
   const { ownerId } = useScope();
   const { isAdmin } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
@@ -56,36 +62,46 @@ function ProdutosPage() {
     }
     setSalesByProduct(map);
   };
-  useEffect(() => { if (ownerId) load(); }, [windowDays, ownerId]);
+  useEffect(() => {
+    if (ownerId) load();
+  }, [windowDays, ownerId]);
 
   const save = async (form: Omit<Product, "id" | "stock_quantity"> & { id?: string }) => {
     if (!isAdmin) return toast.error("O catálogo é administrado pela matriz.");
     if (form.id) {
-      const { error } = await supabase.from("products").update({
-        name: form.name, cost_price: form.cost_price, sale_price: form.sale_price,
-        low_stock_threshold: form.low_stock_threshold,
-      }).eq("id", form.id);
+      const { error } = await supabase
+        .from("products")
+        .update({
+          name: form.name,
+          cost_price: form.cost_price,
+          sale_price: form.sale_price,
+          low_stock_threshold: form.low_stock_threshold,
+        })
+        .eq("id", form.id);
       if (error) return toast.error(error.message);
       toast.success("Produto atualizado");
     } else {
       const { error } = await supabase.from("products").insert({
-        name: form.name, cost_price: form.cost_price, sale_price: form.sale_price,
+        name: form.name,
+        cost_price: form.cost_price,
+        sale_price: form.sale_price,
         low_stock_threshold: form.low_stock_threshold,
         owner_id: null,
       });
       if (error) return toast.error(error.message);
       toast.success("Produto cadastrado");
     }
-    setOpen(false); setEditing(null); load();
+    setOpen(false);
+    setEditing(null);
+    load();
   };
-
-
 
   const remove = async (id: string) => {
     if (!confirm("Remover este produto?")) return;
     const { error } = await supabase.from("products").delete().eq("id", id);
     if (error) return toast.error(error.message);
-    toast.success("Removido"); load();
+    toast.success("Removido");
+    load();
   };
 
   const exportStock = () => {
@@ -127,13 +143,17 @@ function ProdutosPage() {
     ].some((v) => v.toLowerCase().includes(t));
   });
 
-  const { sorted, sortKey, sortDir, toggle } = useSort(filtered, {
-    name: (p) => p.name,
-    cost_price: (p) => Number(p.cost_price),
-    sale_price: (p) => Number(p.sale_price),
-    stock_quantity: (p) => p.stock_quantity,
-    low_stock_threshold: (p) => p.low_stock_threshold,
-  }, { key: "name", dir: "asc" });
+  const { sorted, sortKey, sortDir, toggle } = useSort(
+    filtered,
+    {
+      name: (p) => p.name,
+      cost_price: (p) => Number(p.cost_price),
+      sale_price: (p) => Number(p.sale_price),
+      stock_quantity: (p) => p.stock_quantity,
+      low_stock_threshold: (p) => p.low_stock_threshold,
+    },
+    { key: "name", dir: "asc" },
+  );
 
   const replenish = products
     .map((p) => {
@@ -156,31 +176,96 @@ function ProdutosPage() {
           </p>
         </div>
         <div className="flex gap-2">
-        {isAdmin && <Button variant="outline" onClick={() => setOpenReplenish(true)}><Sparkles className="h-4 w-4 mr-2" /> Reposição Inteligente</Button>}
-        {isAdmin && <Button variant="outline" onClick={exportStock}><Download className="h-4 w-4 mr-2" /> Exportar Estoque</Button>}
           {isAdmin && (
-        <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" /> Novo Produto</Button>
-          </DialogTrigger>
-           <ProductDialog initial={editing} onSave={save} isMatriz />
-        </Dialog>
-        )}
+            <Button variant="outline" onClick={() => setOpenReplenish(true)}>
+              <Sparkles className="h-4 w-4 mr-2" /> Reposição Inteligente
+            </Button>
+          )}
+          {isAdmin && (
+            <Button variant="outline" onClick={exportStock}>
+              <Download className="h-4 w-4 mr-2" /> Exportar Estoque
+            </Button>
+          )}
+          {isAdmin && (
+            <Dialog
+              open={open}
+              onOpenChange={(o) => {
+                setOpen(o);
+                if (!o) setEditing(null);
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" /> Novo Produto
+                </Button>
+              </DialogTrigger>
+              <ProductDialog initial={editing} onSave={save} isMatriz />
+            </Dialog>
+          )}
         </div>
       </div>
       <div className="relative max-w-md">
         <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
-        <Input className="pl-9" placeholder="Buscar em todos os campos..." value={q} onChange={(e) => setQ(e.target.value)} />
+        <Input
+          className="pl-9"
+          placeholder="Buscar em todos os campos..."
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
       </div>
       <Card className="p-0 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-secondary text-secondary-foreground">
             <tr>
-              <th className="text-left p-3"><SortHeader label="Produto" sortKey="name" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
-              {isAdmin && <th className="text-right p-3"><SortHeader label="Valor Entrada" sortKey="cost_price" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>}
-              <th className="text-right p-3"><SortHeader label="Valor Saída" sortKey="sale_price" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
-              <th className="text-right p-3"><SortHeader label="Estoque" sortKey="stock_quantity" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>
-              {isAdmin && <th className="text-right p-3"><SortHeader label="Alerta <=" sortKey="low_stock_threshold" currentKey={sortKey} dir={sortDir} onToggle={toggle} /></th>}
+              <th className="text-left p-3">
+                <SortHeader
+                  label="Produto"
+                  sortKey="name"
+                  currentKey={sortKey}
+                  dir={sortDir}
+                  onToggle={toggle}
+                />
+              </th>
+              {isAdmin && (
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="Valor Entrada"
+                    sortKey="cost_price"
+                    currentKey={sortKey}
+                    dir={sortDir}
+                    onToggle={toggle}
+                  />
+                </th>
+              )}
+              <th className="text-right p-3">
+                <SortHeader
+                  label="Valor Saída"
+                  sortKey="sale_price"
+                  currentKey={sortKey}
+                  dir={sortDir}
+                  onToggle={toggle}
+                />
+              </th>
+              <th className="text-right p-3">
+                <SortHeader
+                  label="Estoque"
+                  sortKey="stock_quantity"
+                  currentKey={sortKey}
+                  dir={sortDir}
+                  onToggle={toggle}
+                />
+              </th>
+              {isAdmin && (
+                <th className="text-right p-3">
+                  <SortHeader
+                    label="Alerta <="
+                    sortKey="low_stock_threshold"
+                    currentKey={sortKey}
+                    dir={sortDir}
+                    onToggle={toggle}
+                  />
+                </th>
+              )}
               {isAdmin && <th className="text-right p-3">Ações</th>}
             </tr>
           </thead>
@@ -190,12 +275,38 @@ function ProdutosPage() {
                 <td className="p-3 font-medium">{p.name}</td>
                 {isAdmin && <td className="p-3 text-right">{fmtBRL(p.cost_price)}</td>}
                 <td className="p-3 text-right">{fmtBRL(p.sale_price)}</td>
-                <td className={"p-3 text-right font-semibold " + (p.stock_quantity <= p.low_stock_threshold ? "text-destructive" : "")}>{p.stock_quantity}</td>
+                <td
+                  className={
+                    "p-3 text-right font-semibold " +
+                    (p.stock_quantity <= p.low_stock_threshold ? "text-destructive" : "")
+                  }
+                >
+                  {p.stock_quantity}
+                </td>
                 {isAdmin && <td className="p-3 text-right">{p.low_stock_threshold}</td>}
-                {isAdmin && <td className="p-3 text-right space-x-1">
-                  <Button size="icon" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }} aria-label={`Editar ${p.name}`}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => remove(p.id)} aria-label={`Remover ${p.name}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </td>}
+                {isAdmin && (
+                  <td className="p-3 text-right space-x-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditing(p);
+                        setOpen(true);
+                      }}
+                      aria-label={`Editar ${p.name}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => remove(p.id)}
+                      aria-label={`Remover ${p.name}`}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -205,20 +316,33 @@ function ProdutosPage() {
       <Dialog open={openReplenish} onOpenChange={setOpenReplenish}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5" /> Proposta de Reposição</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5" /> Proposta de Reposição
+            </DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Período analisado (dias)</Label>
-              <Input type="number" min={1} value={windowDays} onChange={(e) => setWindowDays(Math.max(1, Number(e.target.value)))} />
+              <Input
+                type="number"
+                min={1}
+                value={windowDays}
+                onChange={(e) => setWindowDays(Math.max(1, Number(e.target.value)))}
+              />
             </div>
             <div>
               <Label>Cobertura desejada (dias)</Label>
-              <Input type="number" min={1} value={coverDays} onChange={(e) => setCoverDays(Math.max(1, Number(e.target.value)))} />
+              <Input
+                type="number"
+                min={1}
+                value={coverDays}
+                onChange={(e) => setCoverDays(Math.max(1, Number(e.target.value)))}
+              />
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            Calculado a partir das vendas dos últimos {windowDays} dias. A sugestão cobre {coverDays} dias de venda média.
+            Calculado a partir das vendas dos últimos {windowDays} dias. A sugestão cobre{" "}
+            {coverDays} dias de venda média.
           </p>
           <div className="max-h-[50vh] overflow-auto rounded border">
             <table className="w-full text-sm">
@@ -233,21 +357,40 @@ function ProdutosPage() {
               </thead>
               <tbody>
                 {replenish.length === 0 ? (
-                  <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">Nenhuma reposição necessária no momento.</td></tr>
-                ) : replenish.map(({ p, sold, perDay, suggest }) => (
-                  <tr key={p.id} className="border-t">
-                    <td className="p-2 font-medium">{p.name}</td>
-                    <td className="p-2 text-right">{sold}</td>
-                    <td className="p-2 text-right">{perDay.toFixed(2)}</td>
-                    <td className={"p-2 text-right " + (p.stock_quantity <= p.low_stock_threshold ? "text-destructive font-semibold" : "")}>{p.stock_quantity}</td>
-                    <td className="p-2 text-right font-bold text-primary">{suggest > 0 ? `+${suggest}` : "—"}</td>
+                  <tr>
+                    <td colSpan={5} className="p-4 text-center text-muted-foreground">
+                      Nenhuma reposição necessária no momento.
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  replenish.map(({ p, sold, perDay, suggest }) => (
+                    <tr key={p.id} className="border-t">
+                      <td className="p-2 font-medium">{p.name}</td>
+                      <td className="p-2 text-right">{sold}</td>
+                      <td className="p-2 text-right">{perDay.toFixed(2)}</td>
+                      <td
+                        className={
+                          "p-2 text-right " +
+                          (p.stock_quantity <= p.low_stock_threshold
+                            ? "text-destructive font-semibold"
+                            : "")
+                        }
+                      >
+                        {p.stock_quantity}
+                      </td>
+                      <td className="p-2 text-right font-bold text-primary">
+                        {suggest > 0 ? `+${suggest}` : "—"}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenReplenish(false)}>Fechar</Button>
+            <Button variant="outline" onClick={() => setOpenReplenish(false)}>
+              Fechar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -279,18 +422,57 @@ function ProductDialog({
   return (
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>{isMatriz ? (initial ? "Editar Produto" : "Novo Produto") : "Editar preço de saída"}</DialogTitle>
+        <DialogTitle>
+          {isMatriz ? (initial ? "Editar Produto" : "Novo Produto") : "Editar preço de saída"}
+        </DialogTitle>
       </DialogHeader>
       <div className="space-y-3">
-        <div><Label>Nome</Label><Input value={name} onChange={(e) => setName(e.target.value)} disabled={!isMatriz} /></div>
-        <div className="grid grid-cols-2 gap-3">
-          <div><Label>Valor de Entrada (Matriz)</Label><Input type="number" step="0.01" value={cost} onChange={(e) => setCost(Number(e.target.value))} disabled={!isMatriz} /></div>
-          <div><Label>Valor de Saída</Label><Input type="number" step="0.01" value={sale} onChange={(e) => setSale(Number(e.target.value))} /></div>
+        <div>
+          <Label>Nome</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} disabled={!isMatriz} />
         </div>
-        {isMatriz && <div><Label>Alerta de baixo estoque (un.)</Label><Input type="number" value={low} onChange={(e) => setLow(Number(e.target.value))} /></div>}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Valor de Entrada (Matriz)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={cost}
+              onChange={(e) => setCost(Number(e.target.value))}
+              disabled={!isMatriz}
+            />
+          </div>
+          <div>
+            <Label>Valor de Saída</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={sale}
+              onChange={(e) => setSale(Number(e.target.value))}
+            />
+          </div>
+        </div>
+        {isMatriz && (
+          <div>
+            <Label>Alerta de baixo estoque (un.)</Label>
+            <Input type="number" value={low} onChange={(e) => setLow(Number(e.target.value))} />
+          </div>
+        )}
       </div>
       <DialogFooter>
-        <Button onClick={() => onSave({ id: initial?.id, name, cost_price: cost, sale_price: sale, low_stock_threshold: low })}>Salvar</Button>
+        <Button
+          onClick={() =>
+            onSave({
+              id: initial?.id,
+              name,
+              cost_price: cost,
+              sale_price: sale,
+              low_stock_threshold: low,
+            })
+          }
+        >
+          Salvar
+        </Button>
       </DialogFooter>
     </DialogContent>
   );

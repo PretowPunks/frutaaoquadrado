@@ -23,9 +23,15 @@ export const Route = createFileRoute("/_app/campo")({
   head: () => ({
     meta: [
       { title: "Expediente do Vendedor — Fruta²" },
-      { name: "description", content: "Inicie o expediente e registre sua rota de atendimento com privacidade." },
+      {
+        name: "description",
+        content: "Inicie o expediente e registre sua rota de atendimento com privacidade.",
+      },
       { property: "og:title", content: "Expediente do Vendedor — Fruta²" },
-      { property: "og:description", content: "Jornada com rota por GPS e rastreamento limitado ao expediente." },
+      {
+        property: "og:description",
+        content: "Jornada com rota por GPS e rastreamento limitado ao expediente.",
+      },
     ],
   }),
   component: CampoPage,
@@ -178,7 +184,10 @@ function CampoPage() {
         {shift ? (
           <>
             <p className="text-sm text-muted-foreground">
-              Início: <strong className="text-foreground">{new Date(shift.started_at).toLocaleString("pt-BR")}</strong>
+              Início:{" "}
+              <strong className="text-foreground">
+                {new Date(shift.started_at).toLocaleString("pt-BR")}
+              </strong>
               {shift.start_city ? ` · ${shift.start_city}` : ""}
             </p>
             <p className="text-sm text-muted-foreground">
@@ -192,14 +201,18 @@ function CampoPage() {
           <>
             <div>
               <Label>Município inicial (opcional)</Label>
-              <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ex.: Feira de Santana" />
+              <Input
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Ex.: Feira de Santana"
+              />
             </div>
             <Button className="w-full h-12 text-base" onClick={startShift} disabled={!consent}>
               <Play className="h-5 w-5 mr-2" /> Iniciar Expediente
             </Button>
             <p className="text-xs text-muted-foreground flex items-start gap-2">
-              <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5" />
-              A localização é registrada apenas entre o início e o encerramento do expediente.
+              <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5" />A localização é registrada apenas
+              entre o início e o encerramento do expediente.
             </p>
           </>
         )}
@@ -213,17 +226,20 @@ function CampoPage() {
           </DialogHeader>
           <div className="text-sm space-y-2 max-h-64 overflow-auto text-muted-foreground">
             <p>
-              A Fruta² coleta sua localização geográfica <strong>exclusivamente durante o expediente de trabalho</strong>,
-              com a finalidade de registrar a rota de atendimento entre os municípios e permitir auditoria das visitas.
+              A Fruta² coleta sua localização geográfica{" "}
+              <strong>exclusivamente durante o expediente de trabalho</strong>, com a finalidade de
+              registrar a rota de atendimento entre os municípios e permitir auditoria das visitas.
             </p>
             <p>
               O rastreamento começa quando você clica em <strong>Iniciar Expediente</strong> e é{" "}
-              <strong>interrompido imediatamente</strong> ao clicar em <strong>Encerrar Expediente</strong>. Fora desse
-              período nenhum dado de localização é coletado.
+              <strong>interrompido imediatamente</strong> ao clicar em{" "}
+              <strong>Encerrar Expediente</strong>. Fora desse período nenhum dado de localização é
+              coletado.
             </p>
             <p>
-              Os dados são armazenados de forma segura, acessíveis apenas a você e à administração da empresa, e podem
-              ser solicitados para consulta ou exclusão a qualquer momento, conforme a Lei nº 13.709/2018 (LGPD).
+              Os dados são armazenados de forma segura, acessíveis apenas a você e à administração
+              da empresa, e podem ser solicitados para consulta ou exclusão a qualquer momento,
+              conforme a Lei nº 13.709/2018 (LGPD).
             </p>
           </div>
           <label className="flex items-start gap-2 text-sm">
@@ -231,7 +247,9 @@ function CampoPage() {
             <span>Li e concordo com a coleta de localização durante o expediente.</span>
           </label>
           <DialogFooter>
-            <Button disabled={!accept} onClick={acceptConsent}>Aceitar e continuar</Button>
+            <Button disabled={!accept} onClick={acceptConsent}>
+              Aceitar e continuar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
