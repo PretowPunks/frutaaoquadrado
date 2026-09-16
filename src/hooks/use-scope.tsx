@@ -49,9 +49,9 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
       .then(({ data }) => {
         if (!active) return;
         const activeReps = ((data ?? []) as any[]).map((i) => ({
-            user_id: i.accepted_user_id as string,
-            label: i.name ? `${i.name} (${i.email})` : i.email,
-          }));
+          user_id: i.accepted_user_id as string,
+          label: i.name ? `${i.name} (${i.email})` : i.email,
+        }));
         setReps(activeReps);
         if (saved && !activeReps.some((rep) => rep.user_id === saved)) {
           setViewAsState(null);
@@ -101,6 +101,11 @@ export function useScope() {
 }
 
 /** Aplica o filtro de catálogo/estoque: null = estoque da matriz */
-export function scopeProducts<T extends { is: any; eq: any }>(query: T, productOwner: string | null): T {
-  return (productOwner === null ? query.is("owner_id", null) : query.eq("owner_id", productOwner)) as T;
+export function scopeProducts<T extends { is: any; eq: any }>(
+  query: T,
+  productOwner: string | null,
+): T {
+  return (
+    productOwner === null ? query.is("owner_id", null) : query.eq("owner_id", productOwner)
+  ) as T;
 }
