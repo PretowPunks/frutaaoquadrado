@@ -243,7 +243,16 @@ class MockQueryBuilder implements PromiseLike<Result> {
         id: value.id ?? randomId(),
         created_at: value.created_at ?? new Date().toISOString(),
         ...(this.table === "privacy_consents" ? { user_id: value.user_id ?? uid() } : {}),
-        ...(this.table === "work_shifts" ? { user_id: value.user_id ?? uid() } : {}),
+        ...(this.table === "work_shifts"
+          ? {
+              user_id: value.user_id ?? uid(),
+              started_at: value.started_at ?? new Date().toISOString(),
+              ended_at: value.ended_at ?? null,
+            }
+          : {}),
+        ...(this.table === "shift_route_points"
+          ? { recorded_at: value.recorded_at ?? new Date().toISOString() }
+          : {}),
         ...value,
       }));
       tableRows.push(...created);

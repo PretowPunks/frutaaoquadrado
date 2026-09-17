@@ -35,10 +35,32 @@ type Shift = {
   start_city: string | null;
 };
 
+function localDateKey(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function todayISO(offsetDays = 0) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
+  return localDateKey(d);
+}
+
+function validDate(value: string | null | undefined) {
+  if (!value || Number.isNaN(Date.parse(value))) return null;
+  return new Date(value);
+}
+
+function formatDateTime(value: string | null | undefined) {
+  const date = validDate(value);
+  return date ? date.toLocaleString("pt-BR") : "Data não disponível";
+}
+
+function formatTime(value: string | null | undefined) {
+  const date = validDate(value);
+  return date ? date.toLocaleTimeString("pt-BR") : "Horário não disponível";
 }
 
 function RotasPage() {
@@ -54,10 +76,13 @@ function RotasPage() {
     const { data: sh } = await supabase
       .from("work_shifts")
       .select("id, user_id, started_at, ended_at, start_city")
-      .gte("started_at", `${from}T00:00:00`)
-      .lte("started_at", `${to}T23:59:59`)
       .order("started_at", { ascending: false });
-    const list = (sh ?? []) as Shift[];
+    const list = ((sh ?? []) as Shift[]).filter((shift) => {
+      const startedAt = validDate(shift.started_at);
+      if (!startedAt) return false;
+      const day = localDateKey(startedAt);
+      return day >= from && day <= to;
+    });
     setShifts(list);
     setPicked(new Set(list.slice(0, 3).map((s) => s.id)));
 
@@ -88,7 +113,7 @@ function RotasPage() {
         ids.map((id, i) => {
           const s = shifts.find((x) => x.id === id);
           const label = `${names[s?.user_id ?? ""] ?? "Vendedor"} — ${
-            s ? new Date(s.started_at).toLocaleDateString("pt-BR") : ""
+            s ? (validDate(s.started_at)?.toLocaleDateString("pt-BR") ?? "Data não disponível") : ""
           }`;
           return { id, label, color: COLORS[i % COLORS.length]!, points: grouped[id] ?? [] };
         }),
@@ -142,8 +167,8 @@ function RotasPage() {
               <div className="text-sm">
                 <p className="font-medium">{names[s.user_id] ?? "Vendedor"}</p>
                 <p className="text-xs text-muted-foreground">
-                  {new Date(s.started_at).toLocaleString("pt-BR")}
-                  {s.ended_at ? ` → ${new Date(s.ended_at).toLocaleTimeString("pt-BR")}` : ""}
+                  {formatDateTime(s.started_at)}
+                  {s.ended_at ? ` → ${formatTime(s.ended_at)}` : ""}
                 </p>
                 {s.start_city && <p className="text-xs text-muted-foreground">{s.start_city}</p>}
                 {!s.ended_at && <Badge className="mt-1">Em expediente</Badge>}
