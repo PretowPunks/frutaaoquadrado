@@ -37,7 +37,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export const Route = createFileRoute("/_app/vendas")({ component: VendasPage });
+export const Route = createFileRoute("/_app/vendas")({
+  head: () => ({
+    meta: [
+      { title: "Vendas e Pedidos — Fruta²" },
+      {
+        name: "description",
+        content: "Acompanhe vendas, pedidos agendados e suas situações na Fruta².",
+      },
+      { property: "og:title", content: "Vendas e Pedidos — Fruta²" },
+      {
+        property: "og:description",
+        content: "Acompanhe vendas, pedidos agendados e suas situações na Fruta².",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: VendasPage,
+});
 
 type CartItem = { product_id: string; quantity: number; unit_sale_price: number };
 

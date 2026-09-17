@@ -41,7 +41,25 @@ import {
   type CustomerForm,
 } from "@/lib/customer";
 
-export const Route = createFileRoute("/_app/clientes")({ component: ClientesPage });
+export const Route = createFileRoute("/_app/clientes")({
+  head: () => ({
+    meta: [
+      { title: "Clientes e Pedidos — Fruta²" },
+      {
+        name: "description",
+        content: "Cadastre clientes, consulte compras e registre pedidos agendados na Fruta².",
+      },
+      { property: "og:title", content: "Clientes e Pedidos — Fruta²" },
+      {
+        property: "og:description",
+        content: "Cadastre clientes, consulte compras e registre pedidos agendados na Fruta².",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: ClientesPage,
+});
 
 type Product = {
   id: string;
