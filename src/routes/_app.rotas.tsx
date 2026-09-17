@@ -17,9 +17,15 @@ export const Route = createFileRoute("/_app/rotas")({
   head: () => ({
     meta: [
       { title: "Mapa de Deslocamento — Fruta²" },
-      { name: "description", content: "Audite no mapa a rota percorrida por cada vendedor durante o expediente." },
+      {
+        name: "description",
+        content: "Audite no mapa a rota percorrida por cada vendedor durante o expediente.",
+      },
       { property: "og:title", content: "Mapa de Deslocamento — Fruta²" },
-      { property: "og:description", content: "Rotas por GPS registradas apenas durante a jornada de trabalho." },
+      {
+        property: "og:description",
+        content: "Rotas por GPS registradas apenas durante a jornada de trabalho.",
+      },
     ],
   }),
   component: RotasPage,
@@ -160,9 +166,14 @@ function RotasPage() {
             <MapPinned className="h-4 w-4 text-primary" />
             <span className="font-semibold text-sm">Jornadas</span>
           </div>
-          {shifts.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma jornada no período.</p>}
+          {shifts.length === 0 && (
+            <p className="text-sm text-muted-foreground">Nenhuma jornada no período.</p>
+          )}
           {shifts.map((s) => (
-            <label key={s.id} className="flex items-start gap-2 p-2 rounded hover:bg-muted/50 cursor-pointer">
+            <label
+              key={s.id}
+              className="flex items-start gap-2 p-2 rounded hover:bg-muted/50 cursor-pointer"
+            >
               <Checkbox checked={picked.has(s.id)} onCheckedChange={() => toggle(s.id)} />
               <div className="text-sm">
                 <p className="font-medium">{names[s.user_id] ?? "Vendedor"}</p>
@@ -178,8 +189,20 @@ function RotasPage() {
         </Card>
 
         <div className="lg:col-span-2">
-          <ClientOnly fallback={<Card className="h-[65vh] flex items-center justify-center text-muted-foreground">Carregando mapa...</Card>}>
-            <Suspense fallback={<Card className="h-[65vh] flex items-center justify-center text-muted-foreground">Carregando mapa...</Card>}>
+          <ClientOnly
+            fallback={
+              <Card className="h-[65vh] flex items-center justify-center text-muted-foreground">
+                Carregando mapa...
+              </Card>
+            }
+          >
+            <Suspense
+              fallback={
+                <Card className="h-[65vh] flex items-center justify-center text-muted-foreground">
+                  Carregando mapa...
+                </Card>
+              }
+            >
               <RouteMap tracks={tracks} />
             </Suspense>
           </ClientOnly>

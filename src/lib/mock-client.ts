@@ -10,7 +10,12 @@ import {
 
 type Row = Record<string, any>;
 type Result = { data: any; error: { message: string } | null; count?: number | null };
-type AuthEvent = "SIGNED_IN" | "SIGNED_OUT" | "INITIAL_SESSION" | "TOKEN_REFRESHED" | "USER_UPDATED";
+type AuthEvent =
+  | "SIGNED_IN"
+  | "SIGNED_OUT"
+  | "INITIAL_SESSION"
+  | "TOKEN_REFRESHED"
+  | "USER_UPDATED";
 
 const listeners = new Set<(event: AuthEvent, session: Session | null) => void>();
 let memoryDb: MockDatabase | null = null;
@@ -87,8 +92,10 @@ function randomId() {
 }
 
 function relationFor(table: string, row: Row, relation: string, db: MockDatabase) {
-  if (relation === "products") return db.products.find((item) => item.id === row.product_id) ?? null;
-  if (relation === "customers") return db.customers.find((item) => item.id === row.customer_id) ?? null;
+  if (relation === "products")
+    return db.products.find((item) => item.id === row.product_id) ?? null;
+  if (relation === "customers")
+    return db.customers.find((item) => item.id === row.customer_id) ?? null;
   return null;
 }
 
@@ -186,11 +193,15 @@ class MockQueryBuilder implements PromiseLike<Result> {
   }
 
   private decorate(rows: Row[], db: MockDatabase) {
-    const relations = [...this.columns.matchAll(/(products|customers)\s*\(/g)].map((match) => match[1]);
+    const relations = [...this.columns.matchAll(/(products|customers)\s*\(/g)].map(
+      (match) => match[1],
+    );
     if (relations.length === 0) return rows;
     return rows.map((row) => ({
       ...row,
-      ...Object.fromEntries(relations.map((name) => [name, relationFor(this.table, row, name, db)])),
+      ...Object.fromEntries(
+        relations.map((name) => [name, relationFor(this.table, row, name, db)]),
+      ),
     }));
   }
 
@@ -203,7 +214,10 @@ class MockQueryBuilder implements PromiseLike<Result> {
       for (const row of before) {
         const product = db.products.find((item) => item.id === row.product_id);
         if (product)
-          product.stock_quantity = Math.max(0, Number(product.stock_quantity) - Number(row.quantity));
+          product.stock_quantity = Math.max(
+            0,
+            Number(product.stock_quantity) - Number(row.quantity),
+          );
       }
     }
     if (this.table === "sales") {
@@ -211,7 +225,10 @@ class MockQueryBuilder implements PromiseLike<Result> {
         if (row.status === "scheduled") continue;
         const product = db.products.find((item) => item.id === row.product_id);
         if (product)
-          product.stock_quantity = Math.max(0, Number(product.stock_quantity) - Number(row.quantity));
+          product.stock_quantity = Math.max(
+            0,
+            Number(product.stock_quantity) - Number(row.quantity),
+          );
       }
       for (const row of before) {
         if (row.status === "scheduled") continue;
@@ -223,7 +240,10 @@ class MockQueryBuilder implements PromiseLike<Result> {
       for (const row of after) {
         const product = db.products.find((item) => item.id === row.source_product_id);
         if (product)
-          product.stock_quantity = Math.max(0, Number(product.stock_quantity) - Number(row.quantity));
+          product.stock_quantity = Math.max(
+            0,
+            Number(product.stock_quantity) - Number(row.quantity),
+          );
       }
       for (const row of before) {
         const product = db.products.find((item) => item.id === row.source_product_id);
@@ -235,7 +255,8 @@ class MockQueryBuilder implements PromiseLike<Result> {
   private async execute(): Promise<Result> {
     const db = readDb();
     const tableRows = db[this.table] as Row[];
-    if (!tableRows) return { data: null, error: { message: `Tabela local desconhecida: ${this.table}` } };
+    if (!tableRows)
+      return { data: null, error: { message: `Tabela local desconhecida: ${this.table}` } };
 
     if (this.mode === "insert") {
       const input = Array.isArray(this.values) ? this.values : [this.values ?? {}];
@@ -264,7 +285,8 @@ class MockQueryBuilder implements PromiseLike<Result> {
     const matched = tableRows.filter((row) => this.matches(row));
     if (this.mode === "update") {
       const before = matched.map((row) => ({ ...row }));
-      for (const row of matched) Object.assign(row, this.values ?? {}, { updated_at: new Date().toISOString() });
+      for (const row of matched)
+        Object.assign(row, this.values ?? {}, { updated_at: new Date().toISOString() });
       if (this.table === "sales") {
         for (let index = 0; index < matched.length; index += 1) {
           const previous = before[index];
@@ -301,7 +323,10 @@ class MockQueryBuilder implements PromiseLike<Result> {
     let rows = [...matched];
     if (this.ordering) {
       const { column, ascending } = this.ordering;
-      rows.sort((a, b) => String(a[column] ?? "").localeCompare(String(b[column] ?? "")) * (ascending ? 1 : -1));
+      rows.sort(
+        (a, b) =>
+          String(a[column] ?? "").localeCompare(String(b[column] ?? "")) * (ascending ? 1 : -1),
+      );
     }
     if (this.maxRows !== null) rows = rows.slice(0, this.maxRows);
     const count = this.countMode ? rows.length : null;
@@ -349,7 +374,8 @@ export const supabase = {
         return channel;
       },
       subscribe(..._args: unknown[]) {
-        if (typeof window !== "undefined") window.addEventListener("fruta2:mock-data", () => undefined);
+        if (typeof window !== "undefined")
+          window.addEventListener("fruta2:mock-data", () => undefined);
         return channel;
       },
     };
