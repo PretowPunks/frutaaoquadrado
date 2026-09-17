@@ -17,9 +17,15 @@ export const Route = createFileRoute("/_app/rotas")({
   head: () => ({
     meta: [
       { title: "Mapa de Deslocamento — Fruta²" },
-      { name: "description", content: "Audite no mapa a rota percorrida por cada vendedor durante o expediente." },
+      {
+        name: "description",
+        content: "Audite no mapa a rota percorrida por cada vendedor durante o expediente.",
+      },
       { property: "og:title", content: "Mapa de Deslocamento — Fruta²" },
-      { property: "og:description", content: "Rotas por GPS registradas apenas durante a jornada de trabalho." },
+      {
+        property: "og:description",
+        content: "Rotas por GPS registradas apenas durante a jornada de trabalho.",
+      },
     ],
   }),
   component: RotasPage,
@@ -35,10 +41,32 @@ type Shift = {
   start_city: string | null;
 };
 
+function localDateKey(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function todayISO(offsetDays = 0) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().slice(0, 10);
+  return localDateKey(d);
+}
+
+function validDate(value: string | null | undefined) {
+  if (!value || Number.isNaN(Date.parse(value))) return null;
+  return new Date(value);
+}
+
+function formatDateTime(value: string | null | undefined) {
+  const date = validDate(value);
+  return date ? date.toLocaleString("pt-BR") : "Data não disponível";
+}
+
+function formatTime(value: string | null | undefined) {
+  const date = validDate(value);
+  return date ? date.toLocaleTimeString("pt-BR") : "Horário não disponível";
 }
 
 function RotasPage() {
@@ -54,10 +82,13 @@ function RotasPage() {
     const { data: sh } = await supabase
       .from("work_shifts")
       .select("id, user_id, started_at, ended_at, start_city")
-      .gte("started_at", `${from}T00:00:00`)
-      .lte("started_at", `${to}T23:59:59`)
       .order("started_at", { ascending: false });
-    const list = (sh ?? []) as Shift[];
+    const list = ((sh ?? []) as Shift[]).filter((shift) => {
+      const startedAt = validDate(shift.started_at);
+      if (!startedAt) return false;
+      const day = localDateKey(startedAt);
+      return day >= from && day <= to;
+    });
     setShifts(list);
     setPicked(new Set(list.slice(0, 3).map((s) => s.id)));
 
@@ -88,7 +119,7 @@ function RotasPage() {
         ids.map((id, i) => {
           const s = shifts.find((x) => x.id === id);
           const label = `${names[s?.user_id ?? ""] ?? "Vendedor"} — ${
-            s ? new Date(s.started_at).toLocaleDateString("pt-BR") : ""
+            s ? (validDate(s.started_at)?.toLocaleDateString("pt-BR") ?? "Data não disponível") : ""
           }`;
           return { id, label, color: COLORS[i % COLORS.length]!, points: grouped[id] ?? [] };
         }),
@@ -135,15 +166,20 @@ function RotasPage() {
             <MapPinned className="h-4 w-4 text-primary" />
             <span className="font-semibold text-sm">Jornadas</span>
           </div>
-          {shifts.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma jornada no período.</p>}
+          {shifts.length === 0 && (
+            <p className="text-sm text-muted-foreground">Nenhuma jornada no período.</p>
+          )}
           {shifts.map((s) => (
-            <label key={s.id} className="flex items-start gap-2 p-2 rounded hover:bg-muted/50 cursor-pointer">
+            <label
+              key={s.id}
+              className="flex items-start gap-2 p-2 rounded hover:bg-muted/50 cursor-pointer"
+            >
               <Checkbox checked={picked.has(s.id)} onCheckedChange={() => toggle(s.id)} />
               <div className="text-sm">
                 <p className="font-medium">{names[s.user_id] ?? "Vendedor"}</p>
                 <p className="text-xs text-muted-foreground">
-                  {new Date(s.started_at).toLocaleString("pt-BR")}
-                  {s.ended_at ? ` → ${new Date(s.ended_at).toLocaleTimeString("pt-BR")}` : ""}
+                  {formatDateTime(s.started_at)}
+                  {s.ended_at ? ` → ${formatTime(s.ended_at)}` : ""}
                 </p>
                 {s.start_city && <p className="text-xs text-muted-foreground">{s.start_city}</p>}
                 {!s.ended_at && <Badge className="mt-1">Em expediente</Badge>}
@@ -153,8 +189,20 @@ function RotasPage() {
         </Card>
 
         <div className="lg:col-span-2">
-          <ClientOnly fallback={<Card className="h-[65vh] flex items-center justify-center text-muted-foreground">Carregando mapa...</Card>}>
-            <Suspense fallback={<Card className="h-[65vh] flex items-center justify-center text-muted-foreground">Carregando mapa...</Card>}>
+          <ClientOnly
+            fallback={
+              <Card className="h-[65vh] flex items-center justify-center text-muted-foreground">
+                Carregando mapa...
+              </Card>
+            }
+          >
+            <Suspense
+              fallback={
+                <Card className="h-[65vh] flex items-center justify-center text-muted-foreground">
+                  Carregando mapa...
+                </Card>
+              }
+            >
               <RouteMap tracks={tracks} />
             </Suspense>
           </ClientOnly>

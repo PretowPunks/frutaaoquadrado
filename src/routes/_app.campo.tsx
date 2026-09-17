@@ -42,6 +42,11 @@ const MIN_INTERVAL_MS = 20000;
 
 type Shift = { id: string; started_at: string; ended_at: string | null; start_city: string | null };
 
+function formatDateTime(value: string | null | undefined) {
+  if (!value || Number.isNaN(Date.parse(value))) return "Data não disponível";
+  return new Date(value).toLocaleString("pt-BR");
+}
+
 function CampoPage() {
   const { user, isAdmin } = useAuth();
   const [consent, setConsent] = useState<boolean | null>(null);
@@ -134,9 +139,10 @@ function CampoPage() {
   };
 
   const startShift = async () => {
+    const startedAt = new Date().toISOString();
     const { data, error } = await supabase
       .from("work_shifts")
-      .insert({ start_city: city.trim() || null })
+      .insert({ start_city: city.trim() || null, started_at: startedAt, ended_at: null })
       .select("id, started_at, ended_at, start_city")
       .single();
     if (error) return toast.error(error.message);
@@ -185,9 +191,7 @@ function CampoPage() {
           <>
             <p className="text-sm text-muted-foreground">
               Início:{" "}
-              <strong className="text-foreground">
-                {new Date(shift.started_at).toLocaleString("pt-BR")}
-              </strong>
+              <strong className="text-foreground">{formatDateTime(shift.started_at)}</strong>
               {shift.start_city ? ` · ${shift.start_city}` : ""}
             </p>
             <p className="text-sm text-muted-foreground">
