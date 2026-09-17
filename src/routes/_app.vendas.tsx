@@ -37,7 +37,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export const Route = createFileRoute("/_app/vendas")({ component: VendasPage });
+export const Route = createFileRoute("/_app/vendas")({
+  head: () => ({
+    meta: [
+      { title: "Vendas e Pedidos — Fruta²" },
+      {
+        name: "description",
+        content: "Acompanhe vendas, pedidos agendados e suas situações na Fruta².",
+      },
+      { property: "og:title", content: "Vendas e Pedidos — Fruta²" },
+      {
+        property: "og:description",
+        content: "Acompanhe vendas, pedidos agendados e suas situações na Fruta².",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: VendasPage,
+});
 
 type CartItem = { product_id: string; quantity: number; unit_sale_price: number };
 
@@ -150,6 +168,24 @@ function VendasPage() {
     load();
   };
 
+  const setOrderSituation = async (s: any, next: "pending" | "scheduled" | "delivered") => {
+    if (!isAdmin) return toast.error("Somente a Matriz pode alterar a situação do pedido.");
+    const patch = {
+      order_status: next,
+      status: next === "delivered" ? "paid" : "scheduled",
+      delivery_date: s.delivery_date,
+    };
+    const query = supabase.from("sales").update(patch);
+    const { error } = s.order_id
+      ? await query.eq("order_id", s.order_id)
+      : await query.eq("id", s.id);
+    if (error) return toast.error(error.message);
+    toast.success(
+      `Situação atualizada para ${next === "pending" ? "Pendente" : next === "scheduled" ? "Agendado" : "Entregue"}`,
+    );
+    load();
+  };
+
   const removeSale = async (s: any) => {
     if (isViewingRep && !isAdmin)
       return toast.error("Você está apenas consultando os dados do representante.");
@@ -189,15 +225,21 @@ function VendasPage() {
   const scheduledCount = sales.filter((s) => s.status === "scheduled").length;
 
   const statusLabel = (s: any) =>
-    s.payment_method === "boleto"
-      ? s.boleto_paid_at
-        ? "Boleto pago"
-        : `Boleto vence ${s.boleto_due_date ? new Date(s.boleto_due_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`
-      : s.status === "paid"
-        ? "Pago"
-        : s.status === "unpaid"
-          ? "A Pagar"
-          : `Agendada ${s.delivery_date ? new Date(s.delivery_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`;
+    s.order_status === "delivered"
+      ? "Entregue"
+      : s.order_status === "scheduled"
+        ? "Agendado"
+        : s.order_status === "pending"
+          ? "Pendente"
+          : s.payment_method === "boleto"
+            ? s.boleto_paid_at
+              ? "Boleto pago"
+              : `Boleto vence ${s.boleto_due_date ? new Date(s.boleto_due_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`
+            : s.status === "paid"
+              ? "Pago"
+              : s.status === "unpaid"
+                ? "A Pagar"
+                : `Agendada ${s.delivery_date ? new Date(s.delivery_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`;
 
   const inPeriod = (s: any) => {
     if (!periodMonth) return true;
@@ -633,25 +675,41 @@ function VendasPage() {
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        {s.payment_method === "boleto" &&
-                          (s.boleto_paid_at ? (
-                            <DropdownMenuItem onClick={() => confirmBoleto(s, false)}>
-                              Desfazer confirmação do boleto
+                        {s.order_status ? (
+                          <>
+                            <DropdownMenuItem onClick={() => setOrderSituation(s, "pending")}>
+                              Marcar como Pendente
                             </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem onClick={() => confirmBoleto(s, true)}>
-                              Confirmar pagamento do boleto
+                            <DropdownMenuItem onClick={() => setOrderSituation(s, "scheduled")}>
+                              Marcar como Agendado
                             </DropdownMenuItem>
-                          ))}
-                        <DropdownMenuItem onClick={() => setSaleStatus(s, "paid")}>
-                          Marcar como Pago
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setSaleStatus(s, "unpaid")}>
-                          Marcar como A Pagar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setSaleStatus(s, "scheduled")}>
-                          Marcar como Agendada
-                        </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setOrderSituation(s, "delivered")}>
+                              Marcar como Entregue
+                            </DropdownMenuItem>
+                          </>
+                        ) : (
+                          <>
+                            {s.payment_method === "boleto" &&
+                              (s.boleto_paid_at ? (
+                                <DropdownMenuItem onClick={() => confirmBoleto(s, false)}>
+                                  Desfazer confirmação do boleto
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => confirmBoleto(s, true)}>
+                                  Confirmar pagamento do boleto
+                                </DropdownMenuItem>
+                              ))}
+                            <DropdownMenuItem onClick={() => setSaleStatus(s, "paid")}>
+                              Marcar como Pago
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setSaleStatus(s, "unpaid")}>
+                              Marcar como A Pagar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setSaleStatus(s, "scheduled")}>
+                              Marcar como Agendada
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
