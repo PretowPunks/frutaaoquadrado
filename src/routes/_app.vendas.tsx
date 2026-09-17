@@ -150,6 +150,19 @@ function VendasPage() {
     load();
   };
 
+  const setOrderSituation = async (s: any, next: "pending" | "scheduled" | "delivered") => {
+    if (!isAdmin) return toast.error("Somente a Matriz pode alterar a situação do pedido.");
+    const patch = {
+      order_status: next,
+      status: next === "delivered" ? "paid" : "scheduled",
+      delivery_date: s.delivery_date,
+    };
+    const { error } = await supabase.from("sales").update(patch).eq("id", s.id);
+    if (error) return toast.error(error.message);
+    toast.success(`Situação atualizada para ${next === "pending" ? "Pendente" : next === "scheduled" ? "Agendado" : "Entregue"}`);
+    load();
+  };
+
   const removeSale = async (s: any) => {
     if (isViewingRep && !isAdmin)
       return toast.error("Você está apenas consultando os dados do representante.");
@@ -189,7 +202,13 @@ function VendasPage() {
   const scheduledCount = sales.filter((s) => s.status === "scheduled").length;
 
   const statusLabel = (s: any) =>
-    s.payment_method === "boleto"
+    s.order_status === "delivered"
+      ? "Entregue"
+      : s.order_status === "scheduled"
+        ? "Agendado"
+        : s.order_status === "pending"
+          ? "Pendente"
+          : s.payment_method === "boleto"
       ? s.boleto_paid_at
         ? "Boleto pago"
         : `Boleto vence ${s.boleto_due_date ? new Date(s.boleto_due_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`
@@ -633,6 +652,20 @@ function VendasPage() {
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
+                        {s.order_status ? (
+                          <>
+                            <DropdownMenuItem onClick={() => setOrderSituation(s, "pending")}>
+                              Marcar como Pendente
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setOrderSituation(s, "scheduled")}>
+                              Marcar como Agendado
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setOrderSituation(s, "delivered")}>
+                              Marcar como Entregue
+                            </DropdownMenuItem>
+                          </>
+                        ) : (
+                          <>
                         {s.payment_method === "boleto" &&
                           (s.boleto_paid_at ? (
                             <DropdownMenuItem onClick={() => confirmBoleto(s, false)}>
@@ -652,6 +685,8 @@ function VendasPage() {
                         <DropdownMenuItem onClick={() => setSaleStatus(s, "scheduled")}>
                           Marcar como Agendada
                         </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
