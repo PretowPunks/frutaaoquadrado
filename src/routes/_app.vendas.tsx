@@ -145,7 +145,8 @@ function VendasPage() {
       return toast.error("Você está apenas consultando os dados do representante.");
     const patch: any = { status: next };
     if (next !== "scheduled") patch.delivery_date = null;
-    const { error } = await supabase.from("sales").update(patch).eq("id", s.id);
+    const query = supabase.from("sales").update(patch);
+    const { error } = s.order_id ? await query.eq("order_id", s.order_id) : await query.eq("id", s.id);
     if (error) return toast.error(error.message);
     load();
   };
