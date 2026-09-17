@@ -159,7 +159,9 @@ function VendasPage() {
     };
     const { error } = await supabase.from("sales").update(patch).eq("id", s.id);
     if (error) return toast.error(error.message);
-    toast.success(`Situação atualizada para ${next === "pending" ? "Pendente" : next === "scheduled" ? "Agendado" : "Entregue"}`);
+    toast.success(
+      `Situação atualizada para ${next === "pending" ? "Pendente" : next === "scheduled" ? "Agendado" : "Entregue"}`,
+    );
     load();
   };
 
@@ -209,14 +211,14 @@ function VendasPage() {
         : s.order_status === "pending"
           ? "Pendente"
           : s.payment_method === "boleto"
-      ? s.boleto_paid_at
-        ? "Boleto pago"
-        : `Boleto vence ${s.boleto_due_date ? new Date(s.boleto_due_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`
-      : s.status === "paid"
-        ? "Pago"
-        : s.status === "unpaid"
-          ? "A Pagar"
-          : `Agendada ${s.delivery_date ? new Date(s.delivery_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`;
+            ? s.boleto_paid_at
+              ? "Boleto pago"
+              : `Boleto vence ${s.boleto_due_date ? new Date(s.boleto_due_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`
+            : s.status === "paid"
+              ? "Pago"
+              : s.status === "unpaid"
+                ? "A Pagar"
+                : `Agendada ${s.delivery_date ? new Date(s.delivery_date + "T00:00:00").toLocaleDateString("pt-BR") : ""}`;
 
   const inPeriod = (s: any) => {
     if (!periodMonth) return true;
@@ -666,25 +668,25 @@ function VendasPage() {
                           </>
                         ) : (
                           <>
-                        {s.payment_method === "boleto" &&
-                          (s.boleto_paid_at ? (
-                            <DropdownMenuItem onClick={() => confirmBoleto(s, false)}>
-                              Desfazer confirmação do boleto
+                            {s.payment_method === "boleto" &&
+                              (s.boleto_paid_at ? (
+                                <DropdownMenuItem onClick={() => confirmBoleto(s, false)}>
+                                  Desfazer confirmação do boleto
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => confirmBoleto(s, true)}>
+                                  Confirmar pagamento do boleto
+                                </DropdownMenuItem>
+                              ))}
+                            <DropdownMenuItem onClick={() => setSaleStatus(s, "paid")}>
+                              Marcar como Pago
                             </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem onClick={() => confirmBoleto(s, true)}>
-                              Confirmar pagamento do boleto
+                            <DropdownMenuItem onClick={() => setSaleStatus(s, "unpaid")}>
+                              Marcar como A Pagar
                             </DropdownMenuItem>
-                          ))}
-                        <DropdownMenuItem onClick={() => setSaleStatus(s, "paid")}>
-                          Marcar como Pago
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setSaleStatus(s, "unpaid")}>
-                          Marcar como A Pagar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setSaleStatus(s, "scheduled")}>
-                          Marcar como Agendada
-                        </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setSaleStatus(s, "scheduled")}>
+                              Marcar como Agendada
+                            </DropdownMenuItem>
                           </>
                         )}
                       </DropdownMenuContent>

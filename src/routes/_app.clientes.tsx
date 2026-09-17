@@ -97,7 +97,9 @@ function ClientesPage() {
 
     if (isAdmin) {
       const ownerIds = Array.from(
-        new Set((customerRows ?? []).map((customer: Customer) => customer.owner_id).filter(Boolean)),
+        new Set(
+          (customerRows ?? []).map((customer: Customer) => customer.owner_id).filter(Boolean),
+        ),
       ) as string[];
       if (ownerIds.length > 0) {
         const { data } = await supabase
@@ -251,10 +253,7 @@ function ClientesPage() {
     if (product) setUnitPrice(String(product.sale_price));
   };
 
-  const orderTotal = orderItems.reduce(
-    (total, item) => total + item.quantity * item.unitPrice,
-    0,
-  );
+  const orderTotal = orderItems.reduce((total, item) => total + item.quantity * item.unitPrice, 0);
 
   const removeOrderItem = (productIdToRemove: string) =>
     setOrderItems((current) => current.filter((item) => item.productId !== productIdToRemove));
@@ -718,7 +717,9 @@ function ClientesPage() {
                       <th className="p-3 text-right">Quantidade</th>
                       <th className="p-3 text-right">Valor unitário</th>
                       <th className="p-3 text-right">Subtotal</th>
-                      <th className="w-12 p-3"><span className="sr-only">Remover</span></th>
+                      <th className="w-12 p-3">
+                        <span className="sr-only">Remover</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
