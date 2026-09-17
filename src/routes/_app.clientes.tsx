@@ -29,6 +29,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { PrintPortal } from "@/components/print-portal";
 import { OrderCardDoc } from "@/components/print-docs";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   customerAddress,
   emptyCustomerForm,
@@ -50,6 +51,13 @@ type Product = {
   stock_quantity: number;
 };
 type Profile = { id: string; full_name: string | null; email: string | null };
+type OrderItem = {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  unitCost: number;
+};
 
 function ClientesPage() {
   const { ownerId, isViewingRep, viewingRepLabel } = useScope();
@@ -70,6 +78,7 @@ function ClientesPage() {
   const [quantity, setQuantity] = useState("1");
   const [unitPrice, setUnitPrice] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
 
   const load = async () => {
     let customerQuery = supabase.from("customers").select("*").order("name");
@@ -162,8 +171,7 @@ function ClientesPage() {
     void load();
   };
 
-  const createScheduledOrder = async () => {
-    if (!selected) return;
+  const addOrderItem = () => {
     const product = products.find((item) => item.id === productId);
     const parsedQuantity = Number(quantity);
     const parsedPrice = Number(unitPrice);
@@ -172,25 +180,67 @@ function ClientesPage() {
       return toast.error("Informe uma quantidade válida");
     if (!Number.isFinite(parsedPrice) || parsedPrice < 0)
       return toast.error("Informe um preço válido");
+
+    setOrderItems((current) => {
+      const existing = current.find((item) => item.productId === product.id);
+      if (existing) {
+        return current.map((item) =>
+          item.productId === product.id
+            ? { ...item, quantity: item.quantity + parsedQuantity, unitPrice: parsedPrice }
+            : item,
+        );
+      }
+      return [
+        ...current,
+        {
+          productId: product.id,
+          productName: product.name,
+          quantity: parsedQuantity,
+          unitPrice: parsedPrice,
+          unitCost: Number(product.cost_price),
+        },
+      ];
+    });
+    setProductId("");
+    setQuantity("1");
+    setUnitPrice("");
+  };
+
+  const createScheduledOrder = async () => {
+    if (!selected) return toast.error("Selecione um cliente");
+    if (orderItems.length === 0) return toast.error("Adicione ao menos um produto ao pedido");
     if (!deliveryDate) return toast.error("Informe a data de entrega");
-    const { error } = await supabase.from("sales").insert({
-      product_id: product.id,
+    const orderId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `pedido-${Date.now()}`;
+    const orderTotal = orderItems.reduce(
+      (total, item) => total + item.quantity * item.unitPrice,
+      0,
+    );
+    const rows = orderItems.map((item) => ({
+      order_id: orderId,
+      order_total: orderTotal,
+      order_status: "pending",
+      product_id: item.productId,
       customer_id: selected.id,
-      quantity: parsedQuantity,
-      unit_sale_price: parsedPrice,
-      unit_cost: Number(product.cost_price),
+      quantity: item.quantity,
+      unit_sale_price: item.unitPrice,
+      unit_cost: item.unitCost,
       status: "scheduled",
       payment_method: "direct",
       delivery_date: deliveryDate,
       created_by: user?.id ?? null,
       owner_id: selected.owner_id ?? user?.id ?? null,
-    });
+    }));
+    const { error } = await supabase.from("sales").insert(rows);
     if (error) return toast.error(error.message);
-    toast.success("Pedido agendado enviado para a Matriz");
+    toast.success(`Pedido com ${orderItems.length} item(ns) enviado para a Matriz`);
     setProductId("");
     setQuantity("1");
     setUnitPrice("");
     setDeliveryDate("");
+    setOrderItems([]);
     setOrderOpen(false);
     setSelected({ ...selected });
   };
@@ -200,6 +250,14 @@ function ClientesPage() {
     const product = products.find((item) => item.id === id);
     if (product) setUnitPrice(String(product.sale_price));
   };
+
+  const orderTotal = orderItems.reduce(
+    (total, item) => total + item.quantity * item.unitPrice,
+    0,
+  );
+
+  const removeOrderItem = (productIdToRemove: string) =>
+    setOrderItems((current) => current.filter((item) => item.productId !== productIdToRemove));
 
   const remove = async (id: string) => {
     if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
@@ -232,9 +290,16 @@ function ClientesPage() {
   const toggleAll = () =>
     setPicked(allPicked ? new Set() : new Set(history.map((item) => item.id)));
 
+  const orderSituation = (item: any) =>
+    item.order_status === "delivered"
+      ? "Entregue"
+      : item.order_status === "scheduled"
+        ? "Agendado"
+        : "Pendente";
+
   const statusLabel = (item: any) =>
-    item.status === "scheduled"
-      ? `Entrega ${item.delivery_date ? new Date(`${item.delivery_date}T00:00:00`).toLocaleDateString("pt-BR") : "agendada"}`
+    item.status === "scheduled" || item.order_status
+      ? `${orderSituation(item)}${item.delivery_date ? ` — ${new Date(`${item.delivery_date}T00:00:00`).toLocaleDateString("pt-BR")}` : ""}`
       : item.payment_method === "boleto"
         ? `Boleto${item.boleto_due_date ? ` — vence ${new Date(`${item.boleto_due_date}T00:00:00`).toLocaleDateString("pt-BR")}` : ""}`
         : item.status === "paid"
@@ -503,7 +568,7 @@ function ClientesPage() {
                     Nenhum pedido ou compra registrado.
                   </p>
                 ) : (
-                  <table className="w-full text-sm">
+                  <table className="w-full min-w-[680px] text-sm">
                     <thead className="bg-secondary text-secondary-foreground">
                       <tr>
                         <th className="w-10 p-3">
@@ -576,7 +641,19 @@ function ClientesPage() {
                           <td className="p-3 text-right">
                             {fmtBRL(Number(item.unit_sale_price) * item.quantity)}
                           </td>
-                          <td className="p-3 text-center">{statusLabel(item)}</td>
+                          <td className="p-3 text-center">
+                            <Badge
+                              variant={
+                                item.order_status === "delivered"
+                                  ? "default"
+                                  : item.order_status === "scheduled"
+                                    ? "secondary"
+                                    : "outline"
+                              }
+                            >
+                              {item.order_status ? orderSituation(item) : statusLabel(item)}
+                            </Badge>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -589,7 +666,7 @@ function ClientesPage() {
       </div>
 
       <Dialog open={orderOpen} onOpenChange={setOrderOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Novo pedido agendado</DialogTitle>
           </DialogHeader>
@@ -629,6 +706,51 @@ function ClientesPage() {
                 />
               </Field>
             </div>
+            <Button type="button" variant="outline" className="w-full" onClick={addOrderItem}>
+              <Plus className="mr-2 h-4 w-4" /> Adicionar ao Pedido
+            </Button>
+            {orderItems.length > 0 && (
+              <div className="overflow-x-auto rounded-md border">
+                <table className="w-full min-w-[560px] text-sm">
+                  <thead className="bg-secondary text-secondary-foreground">
+                    <tr>
+                      <th className="p-3 text-left">Produto</th>
+                      <th className="p-3 text-right">Quantidade</th>
+                      <th className="p-3 text-right">Valor unitário</th>
+                      <th className="p-3 text-right">Subtotal</th>
+                      <th className="w-12 p-3"><span className="sr-only">Remover</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orderItems.map((item) => (
+                      <tr key={item.productId} className="border-t">
+                        <td className="p-3 font-medium">{item.productName}</td>
+                        <td className="p-3 text-right">{item.quantity}</td>
+                        <td className="p-3 text-right">{fmtBRL(item.unitPrice)}</td>
+                        <td className="p-3 text-right font-medium">
+                          {fmtBRL(item.quantity * item.unitPrice)}
+                        </td>
+                        <td className="p-2 text-right">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeOrderItem(item.productId)}
+                            aria-label={`Remover ${item.productName}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="flex items-center justify-between border-y py-3 font-semibold">
+              <span>Valor Total</span>
+              <span className="text-lg">{fmtBRL(orderTotal)}</span>
+            </div>
             <Field label="Data de entrega">
               <Input
                 type="date"
@@ -642,7 +764,12 @@ function ClientesPage() {
             </p>
           </div>
           <DialogFooter>
-            <Button onClick={createScheduledOrder}>Registrar pedido</Button>
+            <Button
+              onClick={createScheduledOrder}
+              disabled={!selected || !deliveryDate || orderItems.length === 0}
+            >
+              Finalizar Pedido
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
