@@ -9,6 +9,66 @@ type Item = {
   total: number;
 };
 
+export type PickingListOrder = {
+  id: string;
+  deliveryDate: string;
+  customer: string;
+  address: string;
+  representative: string;
+  items: Array<{ name: string; quantity: number }>;
+};
+
+export function PickingListDoc({ orders }: { orders: PickingListOrder[] }) {
+  const consolidated = Array.from(
+    orders
+      .flatMap((order) => order.items)
+      .reduce((items, item) => {
+        items.set(item.name, (items.get(item.name) ?? 0) + item.quantity);
+        return items;
+      }, new Map<string, number>()),
+  ).sort(([a], [b]) => a.localeCompare(b, "pt-BR"));
+  const dates = Array.from(new Set(orders.map((order) => order.deliveryDate))).sort();
+
+  return (
+    <div className="space-y-6 bg-card p-5 text-card-foreground">
+      <header className="border-b pb-4">
+        <p className="text-2xl font-bold">Fruta²</p>
+        <h2 className="text-lg font-semibold">Romaneio / Lista de Separação</h2>
+        <p className="text-sm text-muted-foreground">
+          Entrega: {dates.map((date) => new Date(`${date}T00:00:00`).toLocaleDateString("pt-BR")).join(" a ")}
+        </p>
+      </header>
+
+      <section>
+        <h3 className="mb-2 font-semibold">Resumo Consolidado de Estoque</h3>
+        <table className="w-full text-sm">
+          <thead><tr><th className="text-left">Sabor / Produto</th><th className="text-right">Caixas / Unidades</th></tr></thead>
+          <tbody>
+            {consolidated.map(([name, quantity]) => (
+              <tr key={name}><td>{name}</td><td className="text-right font-semibold">{quantity}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="space-y-4">
+        <h3 className="font-semibold">Detalhamento por Cliente</h3>
+        {orders.map((order) => (
+          <article key={order.id} className="print-avoid-break border-t pt-3">
+            <div className="mb-2 flex justify-between gap-4">
+              <div><p className="font-semibold">{order.customer}</p><p className="text-sm">{order.address}</p></div>
+              <div className="text-right text-sm"><p>{order.representative}</p><p>{new Date(`${order.deliveryDate}T00:00:00`).toLocaleDateString("pt-BR")}</p></div>
+            </div>
+            <ul className="text-sm">
+              {order.items.map((item) => <li key={item.name}>{item.quantity} × {item.name}</li>)}
+            </ul>
+          </article>
+        ))}
+      </section>
+    </div>
+  );
+}
+
 /** Card de pedido para conferência do cliente (WhatsApp / Instagram) */
 export function OrderCardDoc({
   customer,

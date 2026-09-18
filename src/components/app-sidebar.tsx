@@ -42,7 +42,7 @@ const representativeItems = [
 
 const adminItems = [
   { title: "Representantes", url: "/representantes", icon: UserCog },
-  { title: "Transferências", url: "/transferencias", icon: Truck },
+  { title: "Pedidos & Entregas", url: "/transferencias", icon: Truck },
   { title: "Mapa de Rotas", url: "/rotas", icon: MapPinned },
 ];
 

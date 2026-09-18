@@ -248,6 +248,7 @@ function ClientesPage() {
       unit_sale_price: item.unitPrice,
       unit_cost: item.unitCost,
       status: "scheduled",
+      payment_status: "unpaid",
       payment_method: "direct",
       delivery_date: deliveryDate,
       created_by: user?.id ?? null,
