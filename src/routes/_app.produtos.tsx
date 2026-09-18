@@ -13,6 +13,13 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Pencil, Trash2, Download, Search, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
@@ -20,7 +27,22 @@ import { useSort, SortHeader } from "@/hooks/use-sort";
 import { useScope, scopeProducts } from "@/hooks/use-scope";
 import { useAuth } from "@/hooks/use-auth";
 
-export const Route = createFileRoute("/_app/produtos")({ component: ProdutosPage });
+export const Route = createFileRoute("/_app/produtos")({
+  head: () => ({
+    meta: [
+      { title: "Estoque | Fruta²" },
+      { name: "description", content: "Catálogo, saldos e entradas de estoque da Fruta²." },
+      { property: "og:title", content: "Estoque | Fruta²" },
+      {
+        property: "og:description",
+        content: "Catálogo, saldos e entradas de estoque da Fruta².",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: ProdutosPage,
+});
 
 type Product = {
   id: string;
@@ -30,6 +52,10 @@ type Product = {
   stock_quantity: number;
   low_stock_threshold: number;
 };
+
+type LotItem = { product_id: string; quantity: number; unit_cost: number };
+
+const emptyLotItem = (): LotItem => ({ product_id: "", quantity: 1, unit_cost: 0 });
 
 function ProdutosPage() {
   const { ownerId } = useScope();
@@ -42,6 +68,8 @@ function ProdutosPage() {
   const [windowDays, setWindowDays] = useState(30);
   const [coverDays, setCoverDays] = useState(7);
   const [openReplenish, setOpenReplenish] = useState(false);
+  const [openLot, setOpenLot] = useState(false);
+  const [lotItems, setLotItems] = useState<LotItem[]>([emptyLotItem()]);
 
   const load = async () => {
     // Representantes consultam o catálogo central; somente a matriz o administra.
@@ -102,6 +130,59 @@ function ProdutosPage() {
     if (error) return toast.error(error.message);
     toast.success("Removido");
     load();
+  };
+
+  const updateLotItem = (index: number, patch: Partial<LotItem>) => {
+    setLotItems((current) =>
+      current.map((item, itemIndex) => {
+        if (itemIndex !== index) return item;
+        const next = { ...item, ...patch };
+        if (patch.product_id) {
+          const product = products.find((candidate) => candidate.id === patch.product_id);
+          if (product) next.unit_cost = Number(product.cost_price);
+        }
+        return next;
+      }),
+    );
+  };
+
+  const closeLotDialog = () => {
+    setOpenLot(false);
+    setLotItems([emptyLotItem()]);
+  };
+
+  const registerLot = async () => {
+    if (!isAdmin) return toast.error("Apenas a matriz pode registrar entradas.");
+    const rows = lotItems.map((item, index) => {
+      const product = products.find((candidate) => candidate.id === item.product_id);
+      if (!product) throw new Error(`Linha ${index + 1}: selecione um produto.`);
+      if (!Number.isFinite(item.quantity) || item.quantity < 1)
+        throw new Error(`Linha ${index + 1}: informe uma quantidade válida.`);
+      if (!Number.isFinite(item.unit_cost) || item.unit_cost < 0)
+        throw new Error(`Linha ${index + 1}: informe um valor de entrada válido.`);
+      return {
+        product_id: product.id,
+        quantity: item.quantity,
+        unit_cost: item.unit_cost,
+      };
+    });
+
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const { error } = await supabase.from("stock_entries").insert(
+        rows.map((row) => ({
+          ...row,
+          created_by: auth.user?.id,
+          owner_id: auth.user?.id,
+        })),
+      );
+      if (error) return toast.error(error.message);
+      toast.success(`Lote registrado com ${rows.length} produto(s).`);
+      closeLotDialog();
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível registrar o lote.");
+    }
   };
 
   const exportStock = () => {
@@ -165,17 +246,127 @@ function ProdutosPage() {
     })
     .filter((r) => r.suggest > 0 || r.p.stock_quantity <= r.p.low_stock_threshold)
     .sort((a, b) => b.suggest - a.suggest);
+  const lotTotal = lotItems.reduce(
+    (total, item) => total + Number(item.quantity) * Number(item.unit_cost),
+    0,
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-start gap-3">
         <div>
-          <h2 className="text-2xl font-bold">Produtos</h2>
+          <h2 className="text-2xl font-bold">{isAdmin ? "Estoque" : "Produtos"}</h2>
           <p className="text-sm text-muted-foreground">
             {isAdmin ? "Estoque e catálogo da matriz" : "Catálogo e disponibilidade da matriz"}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+          {isAdmin && (
+            <Dialog
+              open={openLot}
+              onOpenChange={(nextOpen) => {
+                setOpenLot(nextOpen);
+                if (!nextOpen) setLotItems([emptyLotItem()]);
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" /> Registrar Entrada de Lote
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>Registrar Entrada de Lote</DialogTitle>
+                </DialogHeader>
+                <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+                  {lotItems.map((item, index) => (
+                    <div
+                      key={index}
+                      className="grid grid-cols-12 items-end gap-2 rounded border p-3"
+                    >
+                      <div className="col-span-12 sm:col-span-6">
+                        <Label>Produto</Label>
+                        <Select
+                          value={item.product_id}
+                          onValueChange={(value) => updateLotItem(index, { product_id: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o produto" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products.map((product) => (
+                              <SelectItem key={product.id} value={product.id}>
+                                {product.name} · saldo {product.stock_quantity}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="col-span-5 sm:col-span-2">
+                        <Label>Quantidade</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={item.quantity}
+                          onChange={(event) =>
+                            updateLotItem(index, { quantity: Number(event.target.value) })
+                          }
+                        />
+                      </div>
+                      <div className="col-span-5 sm:col-span-3">
+                        <Label>Valor unitário</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={item.unit_cost}
+                          onChange={(event) =>
+                            updateLotItem(index, { unit_cost: Number(event.target.value) })
+                          }
+                        />
+                      </div>
+                      <div className="col-span-2 flex justify-end sm:col-span-1">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          disabled={lotItems.length === 1}
+                          aria-label={`Remover linha ${index + 1}`}
+                          onClick={() =>
+                            setLotItems((current) =>
+                              current.filter((_, itemIndex) => itemIndex !== index),
+                            )
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="col-span-12 text-right text-xs text-muted-foreground">
+                        Subtotal: {fmtBRL(Number(item.quantity) * Number(item.unit_cost))}
+                      </p>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setLotItems((current) => [...current, emptyLotItem()])}
+                  >
+                    <Plus className="h-4 w-4 mr-2" /> Adicionar produto
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between border-t pt-3">
+                  <span className="text-sm text-muted-foreground">Total do lote</span>
+                  <strong className="text-lg">{fmtBRL(lotTotal)}</strong>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={closeLotDialog}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={registerLot}>Registrar entrada</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
           {isAdmin && (
             <Button variant="outline" onClick={() => setOpenReplenish(true)}>
               <Sparkles className="h-4 w-4 mr-2" /> Reposição Inteligente
