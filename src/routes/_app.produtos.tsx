@@ -270,7 +270,7 @@ function ProdutosPage() {
             >
               <DialogTrigger asChild>
                 <Button>
-                  <Plus className="h-4 w-4 mr-2" /> + Registrar Entrada de Lote
+                  <Plus className="h-4 w-4 mr-2" /> Registrar Entrada de Lote
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-3xl">
