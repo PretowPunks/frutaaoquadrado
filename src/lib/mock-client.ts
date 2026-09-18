@@ -91,6 +91,10 @@ function randomId() {
     : `mock-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function saleCommitsStock(row: Row) {
+  return row.order_status ? row.order_status === "delivered" : row.status !== "scheduled";
+}
+
 function relationFor(table: string, row: Row, relation: string, db: MockDatabase) {
   if (relation === "products")
     return db.products.find((item) => item.id === row.product_id) ?? null;
@@ -222,7 +226,7 @@ class MockQueryBuilder implements PromiseLike<Result> {
     }
     if (this.table === "sales") {
       for (const row of after) {
-        if (row.status === "scheduled") continue;
+        if (!saleCommitsStock(row)) continue;
         const product = db.products.find((item) => item.id === row.product_id);
         if (product)
           product.stock_quantity = Math.max(
@@ -231,7 +235,7 @@ class MockQueryBuilder implements PromiseLike<Result> {
           );
       }
       for (const row of before) {
-        if (row.status === "scheduled") continue;
+        if (!saleCommitsStock(row)) continue;
         const product = db.products.find((item) => item.id === row.product_id);
         if (product) product.stock_quantity = Number(product.stock_quantity) + Number(row.quantity);
       }
@@ -291,14 +295,14 @@ class MockQueryBuilder implements PromiseLike<Result> {
         for (let index = 0; index < matched.length; index += 1) {
           const previous = before[index];
           const current = matched[index];
-          if (previous?.status === "scheduled" && current?.status !== "scheduled") {
+          if (!saleCommitsStock(previous ?? {}) && saleCommitsStock(current ?? {})) {
             const product = db.products.find((item) => item.id === current?.product_id);
             if (product)
               product.stock_quantity = Math.max(
                 0,
                 Number(product.stock_quantity) - Number(current?.quantity),
               );
-          } else if (previous?.status !== "scheduled" && current?.status === "scheduled") {
+          } else if (saleCommitsStock(previous ?? {}) && !saleCommitsStock(current ?? {})) {
             const product = db.products.find((item) => item.id === current?.product_id);
             if (product)
               product.stock_quantity = Number(product.stock_quantity) + Number(current?.quantity);

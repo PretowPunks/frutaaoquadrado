@@ -1,247 +1,200 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { CalendarDays, ClipboardList, Printer, Search } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/lib/mock-client";
 import { useAuth } from "@/hooks/use-auth";
+import { customerAddress, type Customer } from "@/lib/customer";
+import { fmtBRL } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Truck, Search, Trash2 } from "lucide-react";
-import { toast } from "sonner";
-import { fmtBRL } from "@/lib/format";
-import { useSort, SortHeader } from "@/hooks/use-sort";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PrintPortal } from "@/components/print-portal";
+import { PickingListDoc, type PickingListOrder } from "@/components/print-docs";
 
 export const Route = createFileRoute("/_app/transferencias")({
   head: () => ({
     meta: [
-      { title: "Transferências de Estoque — Fruta²" },
-      { name: "description", content: "Envie polpas do estoque da matriz para o freezer de cada vendedor." },
-      { property: "og:title", content: "Transferências de Estoque — Fruta²" },
-      { property: "og:description", content: "Baixa automática na matriz e entrada no estoque móvel do vendedor." },
+      { title: "Pedidos & Entregas — Fruta²" },
+      { name: "description", content: "Consulte pedidos, atualize entregas e gere romaneios de separação." },
+      { property: "og:title", content: "Pedidos & Entregas — Fruta²" },
+      { property: "og:description", content: "Gestão de pedidos, entregas, pagamentos e listas de separação da Fruta²." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: TransferenciasPage,
+  component: OrdersDeliveriesPage,
 });
 
-type Prod = { id: string; name: string; stock_quantity: number; cost_price: number; sale_price: number };
-type Rep = { user_id: string; label: string };
+type DeliveryStatus = "pending" | "scheduled" | "delivered";
+type PaymentStatus = "unpaid" | "boleto" | "paid";
+type Representative = { user_id: string; label: string };
+type Sale = Record<string, any> & { customers?: Customer; products?: { name?: string } };
+type Order = {
+  id: string;
+  deliveryDate: string;
+  customer: Customer | null;
+  representativeId: string;
+  representative: string;
+  items: Sale[];
+  total: number;
+  deliveryStatus: DeliveryStatus;
+  paymentStatus: PaymentStatus;
+};
 
-function TransferenciasPage() {
+const deliveryLabels: Record<DeliveryStatus, string> = { pending: "Pendente", scheduled: "Agendada", delivered: "Entregue" };
+const paymentLabels: Record<PaymentStatus, string> = { unpaid: "A Pagar", boleto: "Boleto", paid: "Pago" };
+
+function OrdersDeliveriesPage() {
   const { isAdmin } = useAuth();
-  const [matriz, setMatriz] = useState<Prod[]>([]);
-  const [reps, setReps] = useState<Rep[]>([]);
-  const [rows, setRows] = useState<any[]>([]);
-  const [productId, setProductId] = useState("");
-  const [repId, setRepId] = useState("");
-  const [qty, setQty] = useState("");
-  const [salePrice, setSalePrice] = useState("");
-  const [note, setNote] = useState("");
-  const [q, setQ] = useState("");
-
-  const load = useCallback(async () => {
-    const { data: prods } = await supabase
-      .from("products")
-      .select("id, name, stock_quantity, cost_price, sale_price")
-      .is("owner_id", null)
-      .order("name");
-    setMatriz((prods ?? []) as Prod[]);
-
-    const { data: inv } = await supabase
-      .from("rep_invites")
-      .select("email, name, accepted_user_id")
-      .not("accepted_user_id", "is", null);
-    setReps(
-      ((inv ?? []) as any[]).map((i) => ({
-        user_id: i.accepted_user_id as string,
-        label: i.name ? `${i.name} (${i.email})` : i.email,
-      })),
-    );
-
-    const { data: tr } = await supabase
-      .from("stock_transfers")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setRows(tr ?? []);
-  }, []);
+  const [representatives, setRepresentatives] = useState<Representative[]>([]);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [representativeId, setRepresentativeId] = useState("all");
+  const [situation, setSituation] = useState("all");
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [searched, setSearched] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
-    if (isAdmin) load();
-  }, [isAdmin, load]);
-
-  const selected = matriz.find((p) => p.id === productId);
-
-  const selectProduct = (id: string) => {
-    setProductId(id);
-    const product = matriz.find((item) => item.id === id);
-    setSalePrice(product ? String(product.sale_price) : "");
-  };
-
-  const transfer = async () => {
-    if (!selected) return toast.error("Selecione o produto da matriz");
-    if (!repId) return toast.error("Selecione o vendedor");
-    const quantity = Number(qty);
-    const unitSalePrice = Number(salePrice);
-    if (!Number.isFinite(quantity) || quantity <= 0) return toast.error("Quantidade inválida");
-    if (!Number.isFinite(unitSalePrice) || unitSalePrice < 0) return toast.error("Preço de saída inválido");
-    if (quantity > selected.stock_quantity)
-      return toast.error(`Estoque da matriz insuficiente (${selected.stock_quantity} un.)`);
-
-    const { error } = await supabase.from("stock_transfers").insert({
-      source_product_id: selected.id,
-      product_name: selected.name,
-      to_user_id: repId,
-      quantity,
-      unit_cost: selected.cost_price,
-      unit_sale_price: unitSalePrice,
-      note: note.trim() || null,
+    if (!isAdmin) return;
+    void supabase.from("rep_invites").select("email, name, accepted_user_id").not("accepted_user_id", "is", null).then(({ data }) => {
+      setRepresentatives(((data ?? []) as any[]).map((rep) => ({
+        user_id: rep.accepted_user_id,
+        label: rep.name || rep.email || "Representante",
+      })));
     });
+  }, [isAdmin]);
+
+  const representativeLabel = (id: string) => representatives.find((rep) => rep.user_id === id)?.label ?? "Representante";
+
+  const searchOrders = async () => {
+    if (startDate && endDate && startDate > endDate) return toast.error("A data inicial deve ser anterior à data final");
+    setLoading(true);
+    let query = supabase.from("sales").select("*, products(name), customers(*)").not("delivery_date", "is", null).order("delivery_date");
+    if (startDate) query = query.gte("delivery_date", startDate);
+    if (endDate) query = query.lte("delivery_date", endDate);
+    if (representativeId !== "all") query = query.eq("owner_id", representativeId);
+    if (situation !== "all") query = query.eq("order_status", situation);
+    const { data, error } = await query;
+    setLoading(false);
+    setSearched(true);
     if (error) return toast.error(error.message);
-    toast.success("Transferência registrada — estoque atualizado automaticamente.");
-    setQty("");
-    setSalePrice("");
-    setProductId("");
-    setNote("");
-    load();
+
+    const grouped = new Map<string, Sale[]>();
+    for (const sale of (data ?? []) as Sale[]) {
+      const key = String(sale.order_id ?? sale.id);
+      grouped.set(key, [...(grouped.get(key) ?? []), sale]);
+    }
+    setOrders(Array.from(grouped, ([id, items]) => {
+      const first = items[0];
+      const paymentStatus: PaymentStatus = first.payment_status === "paid" || first.status === "paid"
+        ? "paid"
+        : first.payment_status === "boleto" || first.payment_method === "boleto" ? "boleto" : "unpaid";
+      return {
+        id,
+        deliveryDate: first.delivery_date,
+        customer: first.customers ?? null,
+        representativeId: first.owner_id,
+        representative: representativeLabel(first.owner_id),
+        items,
+        total: items.reduce((sum, item) => sum + Number(item.unit_sale_price) * Number(item.quantity), 0),
+        deliveryStatus: (first.order_status ?? "pending") as DeliveryStatus,
+        paymentStatus,
+      };
+    }));
   };
 
-  const remove = async (id: string) => {
-    if (!confirm("Cancelar esta transferência? O estoque volta para a matriz.")) return;
-    const { error } = await supabase.from("stock_transfers").delete().eq("id", id);
+  const updateOrder = async (order: Order, patch: Record<string, unknown>, success: string) => {
+    const query = supabase.from("sales").update(patch);
+    const { error } = order.items[0]?.order_id ? await query.eq("order_id", order.id) : await query.eq("id", order.id);
     if (error) return toast.error(error.message);
-    toast.success("Transferência cancelada");
-    load();
+    toast.success(success);
+    await searchOrders();
   };
 
-  const repLabel = (id: string) => reps.find((r) => r.user_id === id)?.label ?? "—";
+  const updateDelivery = (order: Order, status: DeliveryStatus) =>
+    updateOrder(order, { order_status: status }, `Entrega atualizada para ${deliveryLabels[status]}`);
 
-  const filtered = rows.filter((r) => {
-    const t = q.toLowerCase().trim();
-    if (!t) return true;
-    return [r.product_name, repLabel(r.to_user_id), r.note ?? "", String(r.quantity)].some((v) =>
-      String(v).toLowerCase().includes(t),
-    );
-  });
+  const updatePayment = (order: Order, status: PaymentStatus) =>
+    updateOrder(order, {
+      payment_status: status,
+      payment_method: status === "boleto" ? "boleto" : "direct",
+      status: status === "paid" ? "paid" : order.deliveryStatus === "delivered" ? "unpaid" : "scheduled",
+      boleto_paid_at: status === "paid" ? new Date().toISOString() : null,
+    }, `Pagamento atualizado para ${paymentLabels[status]}`);
 
-  const sort = useSort(
-    filtered,
-    {
-      created_at: (r) => new Date(r.created_at).getTime(),
-      product_name: (r) => r.product_name,
-      rep: (r) => repLabel(r.to_user_id),
-      quantity: (r) => r.quantity,
-      unit_sale_price: (r) => Number(r.unit_sale_price),
-      total: (r) => Number(r.unit_sale_price) * r.quantity,
-    },
-    { key: "created_at", dir: "desc" },
-  );
+  const reportOrders = useMemo<PickingListOrder[]>(() => orders.map((order) => ({
+    id: order.id,
+    deliveryDate: order.deliveryDate,
+    customer: order.customer?.name ?? "Cliente não informado",
+    address: order.customer ? customerAddress(order.customer) : "Endereço não informado",
+    representative: order.representative,
+    items: order.items.map((item) => ({ name: item.products?.name ?? "Produto", quantity: Number(item.quantity) })),
+  })), [orders]);
+  const canGenerateReport = searched && Boolean(startDate && endDate) && orders.length > 0;
 
-  if (!isAdmin) {
-    return <Card className="p-8 text-center text-muted-foreground">Área exclusiva da matriz.</Card>;
-  }
+  if (!isAdmin) return <Card className="p-8 text-center text-muted-foreground">Área exclusiva da Matriz.</Card>;
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Transferências de Estoque</h2>
-        <p className="text-sm text-muted-foreground">
-          Envie produtos da matriz para o carro/freezer do vendedor. A baixa e a entrada são automáticas.
-        </p>
+        <h2 className="text-2xl font-bold">Pedidos & Entregas</h2>
+        <p className="text-sm text-muted-foreground">Consulte a programação, atualize situações e prepare as entregas.</p>
       </div>
 
-      <Card className="p-5 space-y-4">
-        <div className="flex items-center gap-2">
-          <Truck className="h-5 w-5 text-primary" />
-          <span className="font-semibold">Nova transferência</span>
+      <Card className="space-y-4 p-5">
+        <div className="flex items-center gap-2"><CalendarDays className="h-5 w-5 text-primary" /><h3 className="font-semibold">Filtros da consulta</h3></div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div><Label>Data Início</Label><Input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></div>
+          <div><Label>Data Fim</Label><Input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></div>
+          <div><Label>Representante</Label><Select value={representativeId} onValueChange={setRepresentativeId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos</SelectItem>{representatives.map((rep) => <SelectItem key={rep.user_id} value={rep.user_id}>{rep.label}</SelectItem>)}</SelectContent></Select></div>
+          <div><Label>Situação</Label><Select value={situation} onValueChange={setSituation}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todas</SelectItem><SelectItem value="pending">Pendente</SelectItem><SelectItem value="scheduled">Agendada</SelectItem><SelectItem value="delivered">Entregue</SelectItem></SelectContent></Select></div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="md:col-span-2">
-            <Label>Produto (estoque da matriz)</Label>
-            <Select value={productId} onValueChange={selectProduct}>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>
-                {matriz.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name} — {p.stock_quantity} un.
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="md:col-span-2">
-            <Label>Vendedor</Label>
-            <Select value={repId} onValueChange={setRepId}>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>
-                {reps.map((r) => (
-                  <SelectItem key={r.user_id} value={r.user_id}>{r.label}</SelectItem>
-                ))}
-                {reps.length === 0 && <SelectItem value="none" disabled>Nenhum vendedor ativo</SelectItem>}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Quantidade</Label>
-            <Input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)} />
-          </div>
-          <div>
-            <Label>Preço de saída da Matriz</Label>
-            <Input type="number" min="0" step="0.01" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} />
-          </div>
-          <div>
-            <Label>Observação</Label>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ex.: carga da manhã" />
-          </div>
-          <div className="flex items-end">
-            <Button className="w-full" onClick={transfer}>Transferir</Button>
-          </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <Button variant="outline" disabled={!canGenerateReport} onClick={() => setReportOpen(true)}><ClipboardList className="mr-2 h-4 w-4" />Gerar Romaneio / Lista de Separação</Button>
+          <Button onClick={searchOrders} disabled={loading}><Search className="mr-2 h-4 w-4" />{loading ? "Buscando..." : "Buscar"}</Button>
         </div>
       </Card>
 
-      <Card className="p-0 overflow-hidden">
-        <div className="p-4 border-b">
-          <div className="relative max-w-md">
-            <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
-            <Input className="pl-9" placeholder="Buscar em todos os campos..." value={q} onChange={(e) => setQ(e.target.value)} />
-          </div>
-        </div>
-        {sort.sorted.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">Nenhuma transferência registrada.</p>
+      <Card className="overflow-hidden p-0">
+        {!searched ? (
+          <div className="p-10 text-center text-sm text-muted-foreground">Defina os filtros e clique em Buscar para carregar os pedidos.</div>
+        ) : orders.length === 0 ? (
+          <div className="p-10 text-center text-sm text-muted-foreground">Nenhum pedido encontrado para os filtros informados.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary text-secondary-foreground">
-                <tr>
-                  <th className="text-left p-3"><SortHeader label="Data" sortKey="created_at" currentKey={sort.sortKey} dir={sort.sortDir} onToggle={sort.toggle} /></th>
-                  <th className="text-left p-3"><SortHeader label="Produto" sortKey="product_name" currentKey={sort.sortKey} dir={sort.sortDir} onToggle={sort.toggle} /></th>
-                  <th className="text-left p-3"><SortHeader label="Vendedor" sortKey="rep" currentKey={sort.sortKey} dir={sort.sortDir} onToggle={sort.toggle} /></th>
-                  <th className="text-right p-3"><SortHeader label="Qtd" sortKey="quantity" currentKey={sort.sortKey} dir={sort.sortDir} onToggle={sort.toggle} /></th>
-                  <th className="text-right p-3"><SortHeader label="Preço Matriz" sortKey="unit_sale_price" currentKey={sort.sortKey} dir={sort.sortDir} onToggle={sort.toggle} /></th>
-                  <th className="text-right p-3"><SortHeader label="Total" sortKey="total" currentKey={sort.sortKey} dir={sort.sortDir} onToggle={sort.toggle} /></th>
-                  <th className="p-3" />
+            <table className="w-full min-w-[1050px] text-sm">
+              <thead className="bg-secondary text-secondary-foreground"><tr><th className="p-3 text-left">Data Agendada</th><th className="p-3 text-left">Cliente</th><th className="p-3 text-left">Representante</th><th className="p-3 text-left">Itens</th><th className="p-3 text-right">Valor Total</th><th className="p-3 text-center">Status da Entrega</th><th className="p-3 text-center">Status do Pagamento</th></tr></thead>
+              <tbody>{orders.map((order) => (
+                <tr key={order.id} className="border-t align-top">
+                  <td className="whitespace-nowrap p-3">{new Date(`${order.deliveryDate}T00:00:00`).toLocaleDateString("pt-BR")}</td>
+                  <td className="p-3 font-medium">{order.customer?.name ?? "—"}</td>
+                  <td className="p-3">{order.representative}</td>
+                  <td className="p-3"><ul>{order.items.map((item) => <li key={item.id}>{item.quantity} × {item.products?.name ?? "Produto"}</li>)}</ul></td>
+                  <td className="whitespace-nowrap p-3 text-right font-semibold">{fmtBRL(order.total)}</td>
+                  <td className="p-3 text-center"><StatusMenu label={deliveryLabels[order.deliveryStatus]} variant={order.deliveryStatus === "delivered" ? "default" : order.deliveryStatus === "scheduled" ? "secondary" : "outline"} options={(Object.keys(deliveryLabels) as DeliveryStatus[]).map((value) => ({ value, label: deliveryLabels[value] }))} onChange={(value) => updateDelivery(order, value as DeliveryStatus)} /></td>
+                  <td className="p-3 text-center"><StatusMenu label={paymentLabels[order.paymentStatus]} variant={order.paymentStatus === "paid" ? "default" : order.paymentStatus === "boleto" ? "secondary" : "outline"} options={(Object.keys(paymentLabels) as PaymentStatus[]).map((value) => ({ value, label: paymentLabels[value] }))} onChange={(value) => updatePayment(order, value as PaymentStatus)} /></td>
                 </tr>
-              </thead>
-              <tbody>
-                {sort.sorted.map((r) => (
-                  <tr key={r.id} className="border-t">
-                    <td className="p-3">{new Date(r.created_at).toLocaleString("pt-BR")}</td>
-                    <td className="p-3">{r.product_name}</td>
-                    <td className="p-3">{repLabel(r.to_user_id)}</td>
-                    <td className="p-3 text-right">{r.quantity}</td>
-                    <td className="p-3 text-right">{fmtBRL(Number(r.unit_sale_price))}</td>
-                    <td className="p-3 text-right">{fmtBRL(Number(r.unit_sale_price) * r.quantity)}</td>
-                    <td className="p-3 text-right">
-                      <Button variant="ghost" size="sm" onClick={() => remove(r.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+              ))}</tbody>
             </table>
           </div>
         )}
       </Card>
+
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="max-w-3xl"><DialogHeader><DialogTitle>Romaneio / Lista de Separação</DialogTitle></DialogHeader><div className="max-h-[68vh] overflow-auto"><PickingListDoc orders={reportOrders} /></div><PrintPortal><PickingListDoc orders={reportOrders} /></PrintPortal><DialogFooter className="print:hidden"><Button onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Imprimir / PDF</Button></DialogFooter></DialogContent>
+      </Dialog>
     </div>
   );
+}
+
+function StatusMenu({ label, variant, options, onChange }: { label: string; variant: "default" | "secondary" | "outline"; options: Array<{ value: string; label: string }>; onChange: (value: string) => void }) {
+  return <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-auto p-0"><Badge variant={variant} className="cursor-pointer">{label}</Badge><span className="sr-only">Alterar status</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end">{options.map((option) => <DropdownMenuItem key={option.value} onClick={() => onChange(option.value)}>{option.label}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>;
 }
