@@ -2,11 +2,9 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Package,
-  ArrowDownToLine,
   ShoppingCart,
   Users,
   LogOut,
-  Wallet,
   UserCog,
   MapPin,
   Truck,
@@ -31,9 +29,8 @@ import logoAsset from "@/assets/fruta2-logo.png.asset.json";
 const adminOperationItems = [
   { title: "Painel", url: "/", icon: LayoutDashboard },
   { title: "Meu Expediente", url: "/campo", icon: MapPin },
-  { title: "Produtos", url: "/produtos", icon: Package },
+  { title: "Estoque", url: "/produtos", icon: Package },
   { title: "Vendas", url: "/vendas", icon: ShoppingCart },
-  { title: "Repasses", url: "/repasses", icon: Wallet },
   { title: "Clientes", url: "/clientes", icon: Users },
 ];
 
@@ -42,8 +39,6 @@ const representativeItems = [
   { title: "Produtos", url: "/produtos", icon: Package },
   { title: "Clientes", url: "/clientes", icon: Users },
 ];
-
-const entradasItem = { title: "Entradas", url: "/entradas", icon: ArrowDownToLine };
 
 const adminItems = [
   { title: "Representantes", url: "/representantes", icon: UserCog },
@@ -54,9 +49,7 @@ const adminItems = [
 export function AppSidebar() {
   const path = useRouterState({ select: (r) => r.location.pathname });
   const { user, isAdmin, signOut } = useAuth();
-  const items = isAdmin
-    ? [...adminOperationItems.slice(0, 3), entradasItem, ...adminOperationItems.slice(3)]
-    : representativeItems;
+  const items = isAdmin ? adminOperationItems : representativeItems;
 
   return (
     <Sidebar collapsible="icon">

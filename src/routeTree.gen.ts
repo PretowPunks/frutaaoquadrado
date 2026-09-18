@@ -14,9 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppCampoRouteImport } from './routes/_app.campo'
 import { Route as AppClientesRouteImport } from './routes/_app.clientes'
-import { Route as AppEntradasRouteImport } from './routes/_app.entradas'
 import { Route as AppProdutosRouteImport } from './routes/_app.produtos'
-import { Route as AppRepassesRouteImport } from './routes/_app.repasses'
 import { Route as AppRepresentantesRouteImport } from './routes/_app.representantes'
 import { Route as AppRotasRouteImport } from './routes/_app.rotas'
 import { Route as AppTransferenciasRouteImport } from './routes/_app.transferencias'
@@ -46,19 +44,9 @@ const AppClientesRoute = AppClientesRouteImport.update({
   path: '/clientes',
   getParentRoute: () => AppRoute,
 } as any)
-const AppEntradasRoute = AppEntradasRouteImport.update({
-  id: '/entradas',
-  path: '/entradas',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppProdutosRoute = AppProdutosRouteImport.update({
   id: '/produtos',
   path: '/produtos',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppRepassesRoute = AppRepassesRouteImport.update({
-  id: '/repasses',
-  path: '/repasses',
   getParentRoute: () => AppRoute,
 } as any)
 const AppRepresentantesRoute = AppRepresentantesRouteImport.update({
@@ -87,9 +75,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/campo': typeof AppCampoRoute
   '/clientes': typeof AppClientesRoute
-  '/entradas': typeof AppEntradasRoute
   '/produtos': typeof AppProdutosRoute
-  '/repasses': typeof AppRepassesRoute
   '/representantes': typeof AppRepresentantesRoute
   '/rotas': typeof AppRotasRoute
   '/transferencias': typeof AppTransferenciasRoute
@@ -99,9 +85,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/campo': typeof AppCampoRoute
   '/clientes': typeof AppClientesRoute
-  '/entradas': typeof AppEntradasRoute
   '/produtos': typeof AppProdutosRoute
-  '/repasses': typeof AppRepassesRoute
   '/representantes': typeof AppRepresentantesRoute
   '/rotas': typeof AppRotasRoute
   '/transferencias': typeof AppTransferenciasRoute
@@ -114,9 +98,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_app/campo': typeof AppCampoRoute
   '/_app/clientes': typeof AppClientesRoute
-  '/_app/entradas': typeof AppEntradasRoute
   '/_app/produtos': typeof AppProdutosRoute
-  '/_app/repasses': typeof AppRepassesRoute
   '/_app/representantes': typeof AppRepresentantesRoute
   '/_app/rotas': typeof AppRotasRoute
   '/_app/transferencias': typeof AppTransferenciasRoute
@@ -130,9 +112,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/campo'
     | '/clientes'
-    | '/entradas'
     | '/produtos'
-    | '/repasses'
     | '/representantes'
     | '/rotas'
     | '/transferencias'
@@ -142,9 +122,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/campo'
     | '/clientes'
-    | '/entradas'
     | '/produtos'
-    | '/repasses'
     | '/representantes'
     | '/rotas'
     | '/transferencias'
@@ -156,9 +134,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_app/campo'
     | '/_app/clientes'
-    | '/_app/entradas'
     | '/_app/produtos'
-    | '/_app/repasses'
     | '/_app/representantes'
     | '/_app/rotas'
     | '/_app/transferencias'
@@ -208,25 +184,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientesRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/entradas': {
-      id: '/_app/entradas'
-      path: '/entradas'
-      fullPath: '/entradas'
-      preLoaderRoute: typeof AppEntradasRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/produtos': {
       id: '/_app/produtos'
       path: '/produtos'
       fullPath: '/produtos'
       preLoaderRoute: typeof AppProdutosRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/repasses': {
-      id: '/_app/repasses'
-      path: '/repasses'
-      fullPath: '/repasses'
-      preLoaderRoute: typeof AppRepassesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/representantes': {
@@ -263,9 +225,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppCampoRoute: typeof AppCampoRoute
   AppClientesRoute: typeof AppClientesRoute
-  AppEntradasRoute: typeof AppEntradasRoute
   AppProdutosRoute: typeof AppProdutosRoute
-  AppRepassesRoute: typeof AppRepassesRoute
   AppRepresentantesRoute: typeof AppRepresentantesRoute
   AppRotasRoute: typeof AppRotasRoute
   AppTransferenciasRoute: typeof AppTransferenciasRoute
@@ -276,9 +236,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppCampoRoute: AppCampoRoute,
   AppClientesRoute: AppClientesRoute,
-  AppEntradasRoute: AppEntradasRoute,
   AppProdutosRoute: AppProdutosRoute,
-  AppRepassesRoute: AppRepassesRoute,
   AppRepresentantesRoute: AppRepresentantesRoute,
   AppRotasRoute: AppRotasRoute,
   AppTransferenciasRoute: AppTransferenciasRoute,
