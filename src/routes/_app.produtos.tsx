@@ -153,21 +153,20 @@ function ProdutosPage() {
 
   const registerLot = async () => {
     if (!isAdmin) return toast.error("Apenas a matriz pode registrar entradas.");
-    const rows = lotItems.map((item, index) => {
-      const product = products.find((candidate) => candidate.id === item.product_id);
-      if (!product) throw new Error(`Linha ${index + 1}: selecione um produto.`);
-      if (!Number.isFinite(item.quantity) || item.quantity < 1)
-        throw new Error(`Linha ${index + 1}: informe uma quantidade válida.`);
-      if (!Number.isFinite(item.unit_cost) || item.unit_cost < 0)
-        throw new Error(`Linha ${index + 1}: informe um valor de entrada válido.`);
-      return {
-        product_id: product.id,
-        quantity: item.quantity,
-        unit_cost: item.unit_cost,
-      };
-    });
-
     try {
+      const rows = lotItems.map((item, index) => {
+        const product = products.find((candidate) => candidate.id === item.product_id);
+        if (!product) throw new Error(`Linha ${index + 1}: selecione um produto.`);
+        if (!Number.isFinite(item.quantity) || item.quantity < 1)
+          throw new Error(`Linha ${index + 1}: informe uma quantidade válida.`);
+        if (!Number.isFinite(item.unit_cost) || item.unit_cost < 0)
+          throw new Error(`Linha ${index + 1}: informe um valor de entrada válido.`);
+        return {
+          product_id: product.id,
+          quantity: item.quantity,
+          unit_cost: item.unit_cost,
+        };
+      });
       const { data: auth } = await supabase.auth.getUser();
       const { error } = await supabase.from("stock_entries").insert(
         rows.map((row) => ({

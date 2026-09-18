@@ -9,21 +9,6 @@ type Item = {
   total: number;
 };
 
-function DocHeader({ title, subtitle }: { title: string; subtitle?: string }) {
-  return (
-    <div className="flex items-end justify-between border-b pb-2 mb-4">
-      <div>
-        <p className="text-xl font-bold leading-none">Fruta²</p>
-        <p className="text-xs text-muted-foreground">Polpas de fruta</p>
-      </div>
-      <div className="text-right">
-        <p className="font-semibold">{title}</p>
-        {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
-      </div>
-    </div>
-  );
-}
-
 /** Card de pedido para conferência do cliente (WhatsApp / Instagram) */
 export function OrderCardDoc({
   customer,
