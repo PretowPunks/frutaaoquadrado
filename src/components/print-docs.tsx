@@ -35,17 +35,28 @@ export function PickingListDoc({ orders }: { orders: PickingListOrder[] }) {
         <p className="text-2xl font-bold">Fruta²</p>
         <h2 className="text-lg font-semibold">Romaneio / Lista de Separação</h2>
         <p className="text-sm text-muted-foreground">
-          Entrega: {dates.map((date) => new Date(`${date}T00:00:00`).toLocaleDateString("pt-BR")).join(" a ")}
+          Entrega:{" "}
+          {dates
+            .map((date) => new Date(`${date}T00:00:00`).toLocaleDateString("pt-BR"))
+            .join(" a ")}
         </p>
       </header>
 
       <section>
         <h3 className="mb-2 font-semibold">Resumo Consolidado de Estoque</h3>
         <table className="w-full text-sm">
-          <thead><tr><th className="text-left">Sabor / Produto</th><th className="text-right">Caixas / Unidades</th></tr></thead>
+          <thead>
+            <tr>
+              <th className="text-left">Sabor / Produto</th>
+              <th className="text-right">Caixas / Unidades</th>
+            </tr>
+          </thead>
           <tbody>
             {consolidated.map(([name, quantity]) => (
-              <tr key={name}><td>{name}</td><td className="text-right font-semibold">{quantity}</td></tr>
+              <tr key={name}>
+                <td>{name}</td>
+                <td className="text-right font-semibold">{quantity}</td>
+              </tr>
             ))}
           </tbody>
         </table>
@@ -56,11 +67,21 @@ export function PickingListDoc({ orders }: { orders: PickingListOrder[] }) {
         {orders.map((order) => (
           <article key={order.id} className="print-avoid-break border-t pt-3">
             <div className="mb-2 flex justify-between gap-4">
-              <div><p className="font-semibold">{order.customer}</p><p className="text-sm">{order.address}</p></div>
-              <div className="text-right text-sm"><p>{order.representative}</p><p>{new Date(`${order.deliveryDate}T00:00:00`).toLocaleDateString("pt-BR")}</p></div>
+              <div>
+                <p className="font-semibold">{order.customer}</p>
+                <p className="text-sm">{order.address}</p>
+              </div>
+              <div className="text-right text-sm">
+                <p>{order.representative}</p>
+                <p>{new Date(`${order.deliveryDate}T00:00:00`).toLocaleDateString("pt-BR")}</p>
+              </div>
             </div>
             <ul className="text-sm">
-              {order.items.map((item) => <li key={item.name}>{item.quantity} × {item.name}</li>)}
+              {order.items.map((item) => (
+                <li key={item.name}>
+                  {item.quantity} × {item.name}
+                </li>
+              ))}
             </ul>
           </article>
         ))}
