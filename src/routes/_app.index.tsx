@@ -1,184 +1,204 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  AlertTriangle,
+  Banknote,
+  CalendarClock,
+  CircleDollarSign,
+  Clock3,
+  PackageCheck,
+  ReceiptText,
+  TrendingUp,
+} from "lucide-react";
 import { supabase } from "@/lib/mock-client";
 import { Card } from "@/components/ui/card";
-import { Package, AlertTriangle, TrendingUp, DollarSign, Wallet } from "lucide-react";
-import { useScope, scopeProducts } from "@/hooks/use-scope";
+import { fmtBRL } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/")({
+  head: () => ({
+    meta: [
+      { title: "Dashboard da Matriz — Fruta²" },
+      { name: "description", content: "Indicadores operacionais e financeiros da Matriz Fruta²." },
+      { property: "og:title", content: "Dashboard da Matriz — Fruta²" },
+      { property: "og:description", content: "Acompanhe faturamento, pedidos, estoque e desempenho comercial da Fruta²." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: Dashboard,
 });
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
+type ChartItem = { label: string; detail?: string; value: number };
+type DashboardStats = {
+  revenue: number;
+  pendingCount: number;
+  pendingValue: number;
+  scheduledCount: number;
+  scheduledValue: number;
+  openValue: number;
+  boletoValue: number;
+  lowStock: Array<{ id: string; name: string; stock_quantity: number; low_stock_threshold: number }>;
+  topProducts: ChartItem[];
+  salesByTerritory: ChartItem[];
+};
+
+const initialStats: DashboardStats = {
+  revenue: 0,
+  pendingCount: 0,
+  pendingValue: 0,
+  scheduledCount: 0,
+  scheduledValue: 0,
+  openValue: 0,
+  boletoValue: 0,
+  lowStock: [],
+  topProducts: [],
+  salesByTerritory: [],
+};
+
+function paymentStatus(sale: Record<string, any>) {
+  if (sale.payment_status === "paid" || sale.status === "paid") return "paid";
+  if (sale.payment_status === "boleto" || sale.payment_method === "boleto") return "boleto";
+  return "unpaid";
+}
 
 function Dashboard() {
-  const { ownerId, productOwner, isMatriz, isViewingRep } = useScope();
-  const [stats, setStats] = useState({
-    stockValue: 0,
-    totalProfit: 0,
-    supplierReturn: 0,
-    supplierPaid: 0,
-    supplierOwed: 0,
-    pendingPayment: 0,
-    lowStock: [] as { id: string; name: string; stock_quantity: number }[],
-    profitByProduct: [] as { name: string; profit: number }[],
-    lastBackupAt: null as string | null,
-  });
+  const [stats, setStats] = useState<DashboardStats>(initialStats);
 
   const load = useCallback(async () => {
-    {
-      const { data: productRows } = await scopeProducts(supabase.from("products").select("*") as any, productOwner);
-      const products = (productRows ?? []) as Array<{
-        id: string;
-        name: string;
-        cost_price: number;
-        stock_quantity: number;
-        low_stock_threshold: number;
-      }>;
-      const salesQuery = supabase.from("sales").select("*, products(name)");
-      const { data: sales } = await (isMatriz ? salesQuery : salesQuery.eq("owner_id", ownerId));
-      const paysQuery = (supabase as any).from("supplier_payments").select("amount");
-      const { data: pays } = await (isMatriz ? paysQuery.eq("owner_id", ownerId) : paysQuery.eq("owner_id", ownerId));
-      const { data: backups } = await (supabase as any)
-        .from("data_backups").select("created_at").order("created_at", { ascending: false }).limit(1);
+    const [{ data: productRows }, { data: saleRows }, { data: inviteRows }] = await Promise.all([
+      supabase.from("products").select("*").is("owner_id", null),
+      supabase.from("sales").select("*, products(name), customers(city)"),
+      supabase.from("rep_invites").select("email, name, accepted_user_id"),
+    ]);
+    const products = (productRows ?? []) as Array<Record<string, any>>;
+    const sales = (saleRows ?? []) as Array<Record<string, any>>;
+    const repNames = new Map(
+      ((inviteRows ?? []) as Array<Record<string, any>>).map((rep) => [
+        rep.accepted_user_id,
+        rep.name || rep.email || "Representante",
+      ]),
+    );
 
-      const stockValue = products.reduce(
-        (s, p) => s + Number(p.cost_price) * p.stock_quantity,
-        0,
-      );
-      const lowStock = products
-        .filter((p) => p.stock_quantity <= p.low_stock_threshold)
-        .map((p) => ({ id: p.id, name: p.name, stock_quantity: p.stock_quantity }));
+    const orders = new Map<string, { status: string; total: number }>();
+    const byProduct = new Map<string, number>();
+    const byTerritory = new Map<string, number>();
+    let revenue = 0;
+    let openValue = 0;
+    let boletoValue = 0;
 
-      let totalProfit = 0;
-      let supplierReturn = 0;
-      let pendingPayment = 0;
-      let boletoPaid = 0;
-      const byProduct = new Map<string, number>();
+    for (const sale of sales) {
+      const total = Number(sale.unit_sale_price) * Number(sale.quantity);
+      revenue += total;
+      const payStatus = paymentStatus(sale);
+      if (payStatus === "unpaid") openValue += total;
+      if (payStatus === "boleto") boletoValue += total;
 
-      for (const s of sales ?? []) {
-        const profit = (Number(s.unit_sale_price) - Number(s.unit_cost)) * s.quantity;
-        totalProfit += profit;
-        supplierReturn += Number(s.unit_cost) * s.quantity;
-        if ((s as any).payment_method === "boleto" && (s as any).boleto_paid_at)
-          boletoPaid += Number(s.unit_cost) * s.quantity;
-        if (s.status === "unpaid")
-          pendingPayment += Number(s.unit_sale_price) * s.quantity;
-        const name = (s as any).products?.name ?? "—";
-        byProduct.set(name, (byProduct.get(name) ?? 0) + profit);
-      }
+      const orderKey = String(sale.order_id ?? sale.id);
+      const currentOrder = orders.get(orderKey) ?? {
+        status: sale.order_status ?? (sale.status === "scheduled" ? "scheduled" : "delivered"),
+        total: 0,
+      };
+      currentOrder.total += total;
+      orders.set(orderKey, currentOrder);
 
-      const supplierPaid = (pays ?? []).reduce((a: number, p: any) => a + Number(p.amount), 0);
-
-      setStats({
-        stockValue,
-        totalProfit,
-        supplierReturn,
-        supplierPaid,
-        supplierOwed: supplierReturn - supplierPaid - boletoPaid,
-        pendingPayment,
-        lowStock,
-        profitByProduct: [...byProduct.entries()]
-          .map(([name, profit]) => ({ name, profit }))
-          .sort((a, b) => b.profit - a.profit),
-        lastBackupAt: backups?.[0]?.created_at ?? null,
-      });
+      const product = sale.products?.name ?? "Produto não identificado";
+      byProduct.set(product, (byProduct.get(product) ?? 0) + Number(sale.quantity));
+      const city = sale.customers?.city || "Cidade não informada";
+      const representative = repNames.get(sale.owner_id) || (sale.owner_id ? "Representante" : "Matriz");
+      const territory = `${city} / ${representative}`;
+      byTerritory.set(territory, (byTerritory.get(territory) ?? 0) + total);
     }
-  }, [isMatriz, ownerId, productOwner]);
 
-  // Faturamento em tempo real: recarrega quando vendas ou estoque mudam na rua
+    const pending = [...orders.values()].filter((order) => order.status === "pending");
+    const scheduled = [...orders.values()].filter((order) => order.status === "scheduled");
+    setStats({
+      revenue,
+      pendingCount: pending.length,
+      pendingValue: pending.reduce((sum, order) => sum + order.total, 0),
+      scheduledCount: scheduled.length,
+      scheduledValue: scheduled.reduce((sum, order) => sum + order.total, 0),
+      openValue,
+      boletoValue,
+      lowStock: products
+        .filter((product) => Number(product.stock_quantity) <= Number(product.low_stock_threshold))
+        .map((product) => ({
+          id: product.id,
+          name: product.name,
+          stock_quantity: Number(product.stock_quantity),
+          low_stock_threshold: Number(product.low_stock_threshold),
+        }))
+        .sort((a, b) => a.stock_quantity - b.stock_quantity),
+      topProducts: [...byProduct.entries()]
+        .map(([label, value]) => ({ label, value, detail: `${value} un.` }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 6),
+      salesByTerritory: [...byTerritory.entries()]
+        .map(([label, value]) => ({ label, value, detail: fmtBRL(value) }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 6),
+    });
+  }, []);
+
   useEffect(() => {
-    load();
+    void load();
     const channel = supabase
-      .channel("painel-tempo-real")
-      .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, () => load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, () => load())
+      .channel("dashboard-matriz-tempo-real")
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, load)
       .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => supabase.removeChannel(channel);
   }, [load]);
 
   return (
-    <div className="space-y-6">
-      <div><h2 className="text-2xl font-bold">Painel Fruta²</h2><p className="text-sm text-muted-foreground">{isMatriz ? "Visão consolidada das vendas da matriz e dos representantes." : isViewingRep ? "Indicadores do representante selecionado." : "Seus indicadores de vendas e estoque móvel."}</p></div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={<Package />} label="Valor do Estoque" value={fmt(stats.stockValue)} />
-        <StatCard icon={<TrendingUp />} label="Lucro Bruto Total" value={fmt(stats.totalProfit)} />
-        <StatCard icon={<Wallet />} label="Saldo Devido ao Fornecedor" value={fmt(stats.supplierOwed)} />
-        <StatCard icon={<DollarSign />} label="Vendas A Receber" value={fmt(stats.pendingPayment)} />
+    <div className="space-y-7">
+      <div>
+        <h2 className="text-2xl font-bold">Dashboard da Matriz</h2>
+        <p className="text-sm text-muted-foreground">Visão consolidada da operação e do financeiro.</p>
       </div>
 
-      <Card className="p-4 flex flex-wrap items-center justify-between gap-3 text-sm">
-        <div>
-          <span className="text-muted-foreground">Total gerado pelas vendas (custo): </span>
-          <span className="font-semibold">{fmt(stats.supplierReturn)}</span>
-          <span className="mx-2 text-muted-foreground">·</span>
-          <span className="text-muted-foreground">Já repassado: </span>
-          <span className="font-semibold text-primary">{fmt(stats.supplierPaid)}</span>
-        </div>
-        <div className="text-muted-foreground">
-          Backup automático diário ·{" "}
-          {stats.lastBackupAt
-            ? <>último em <span className="font-medium text-foreground">{new Date(stats.lastBackupAt).toLocaleString("pt-BR")}</span></>
-            : <span className="italic">aguardando primeira execução (03:00 UTC)</span>}
-        </div>
-      </Card>
+      <KpiSection title="Bloco Operacional" description="Pedidos, faturamento e disponibilidade de estoque.">
+        <KpiCard icon={<TrendingUp />} label="Faturamento Total" value={fmtBRL(stats.revenue)} />
+        <KpiCard icon={<Clock3 />} label="Pedidos Pendentes" value={`${stats.pendingCount} pedido(s)`} detail={fmtBRL(stats.pendingValue)} />
+        <KpiCard icon={<CalendarClock />} label="Pedidos Agendados" value={`${stats.scheduledCount} pedido(s)`} detail={fmtBRL(stats.scheduledValue)} />
+        <KpiCard icon={<AlertTriangle />} label="Alertas de Estoque Baixo" value={`${stats.lowStock.length} sabor(es)`} detail={stats.lowStock.length ? stats.lowStock.map((item) => item.name).join(", ") : "Nenhum alerta"} alert={stats.lowStock.length > 0} />
+      </KpiSection>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="h-5 w-5 text-accent" />
-            <h3 className="font-semibold">Produtos com Baixo Estoque</h3>
+      <KpiSection title="Bloco Financeiro" description="Valores ainda aguardando recebimento.">
+        <KpiCard icon={<Banknote />} label="A Pagar / Em Aberto" value={fmtBRL(stats.openValue)} />
+        <KpiCard icon={<ReceiptText />} label="Boletos a Receber" value={fmtBRL(stats.boletoValue)} />
+      </KpiSection>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <ChartCard title="Produtos Mais Vendidos" subtitle="Top sabores de polpa por quantidade" icon={<PackageCheck className="h-5 w-5" />} items={stats.topProducts} />
+        <ChartCard title="Vendas por Cidade / Representante" subtitle="Valor bruto vendido por território" icon={<CircleDollarSign className="h-5 w-5" />} items={stats.salesByTerritory} />
+      </div>
+
+      {stats.lowStock.length > 0 && (
+        <Card className="overflow-hidden p-0">
+          <div className="border-b p-5">
+            <h3 className="font-semibold">Produtos abaixo do limite</h3>
           </div>
-          {stats.lowStock.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum produto em alerta.</p>
-          ) : (
-            <ul className="divide-y">
-              {stats.lowStock.map((p) => (
-                <li key={p.id} className="py-2 flex justify-between text-sm">
-                  <span>{p.name}</span>
-                  <span className="font-semibold text-destructive">{p.stock_quantity} un.</span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[500px] text-sm">
+              <thead className="bg-secondary text-secondary-foreground"><tr><th className="p-3 text-left">Sabor</th><th className="p-3 text-right">Saldo atual</th><th className="p-3 text-right">Limite</th></tr></thead>
+              <tbody>{stats.lowStock.map((item) => <tr key={item.id} className="border-t"><td className="p-3 font-medium">{item.name}</td><td className="p-3 text-right font-semibold text-destructive">{item.stock_quantity} un.</td><td className="p-3 text-right">{item.low_stock_threshold} un.</td></tr>)}</tbody>
+            </table>
+          </div>
         </Card>
-
-        <Card className="p-5">
-          <h3 className="font-semibold mb-3">Lucro por Produto</h3>
-          {stats.profitByProduct.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sem vendas registradas ainda.</p>
-          ) : (
-            <ul className="divide-y max-h-80 overflow-auto">
-              {stats.profitByProduct.map((p) => (
-                <li key={p.name} className="py-2 flex justify-between text-sm">
-                  <span>{p.name}</span>
-                  <span className="font-semibold text-primary">{fmt(p.profit)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
+      )}
     </div>
   );
 }
 
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <Card className="p-5">
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-          {icon}
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg font-bold">{value}</p>
-        </div>
-      </div>
-    </Card>
-  );
+function KpiSection({ title, description, children }: { title: string; description: string; children: ReactNode }) {
+  return <section className="space-y-3"><div><h3 className="text-sm font-bold uppercase text-foreground">{title}</h3><p className="text-xs text-muted-foreground">{description}</p></div><div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{children}</div></section>;
+}
+
+function KpiCard({ icon, label, value, detail, alert = false }: { icon: ReactNode; label: string; value: string; detail?: string; alert?: boolean }) {
+  return <Card className="p-5"><div className="flex items-start gap-3"><div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${alert ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"}`}>{icon}</div><div className="min-w-0"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-xl font-bold">{value}</p>{detail && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground" title={detail}>{detail}</p>}</div></div></Card>;
+}
+
+function ChartCard({ title, subtitle, icon, items }: { title: string; subtitle: string; icon: ReactNode; items: ChartItem[] }) {
+  const max = useMemo(() => Math.max(...items.map((item) => item.value), 1), [items]);
+  return <Card className="p-5"><div className="mb-5 flex items-start gap-2 text-primary">{icon}<div><h3 className="font-semibold text-foreground">{title}</h3><p className="text-xs text-muted-foreground">{subtitle}</p></div></div>{items.length === 0 ? <div className="flex min-h-52 items-center justify-center text-sm text-muted-foreground">Sem vendas registradas ainda.</div> : <div className="space-y-4">{items.map((item) => <div key={item.label} className="space-y-1.5"><div className="flex items-start justify-between gap-3 text-sm"><span className="min-w-0 font-medium">{item.label}</span><span className="shrink-0 text-muted-foreground">{item.detail}</span></div><div className="h-2 overflow-hidden rounded bg-secondary"><div className="h-full rounded bg-primary transition-[width] duration-500" style={{ width: `${Math.max((item.value / max) * 100, 4)}%` }} /></div></div>)}</div>}</Card>;
 }
