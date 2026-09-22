@@ -40,6 +40,7 @@ import {
   type Customer,
   type CustomerForm,
 } from "@/lib/customer";
+import type { Database } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/_app/clientes")({
   head: () => ({
@@ -76,6 +77,7 @@ type OrderItem = {
   unitPrice: number;
   unitCost: number;
 };
+type SaleInsert = Database["public"]["Tables"]["sales"]["Insert"];
 
 function ClientesPage() {
   const { ownerId, isViewingRep, viewingRepLabel } = useScope();
@@ -238,7 +240,7 @@ function ClientesPage() {
       (total, item) => total + item.quantity * item.unitPrice,
       0,
     );
-    const rows = orderItems.map((item) => ({
+    const rows: SaleInsert[] = orderItems.map((item) => ({
       order_id: orderId,
       order_total: orderTotal,
       order_status: "pending",

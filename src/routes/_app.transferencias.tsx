@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { PrintPortal } from "@/components/print-portal";
 import { PickingListDoc, type PickingListOrder } from "@/components/print-docs";
+import type { Database } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/_app/transferencias")({
   head: () => ({
@@ -58,6 +59,7 @@ type DeliveryStatus = "pending" | "scheduled" | "delivered";
 type PaymentStatus = "unpaid" | "boleto" | "paid";
 type Representative = { user_id: string; label: string };
 type Sale = Record<string, any> & { customers?: Customer; products?: { name?: string } };
+type SaleUpdate = Database["public"]["Tables"]["sales"]["Update"];
 type Order = {
   id: string;
   deliveryDate: string;
@@ -164,7 +166,7 @@ function OrdersDeliveriesPage() {
     );
   };
 
-  const updateOrder = async (order: Order, patch: Record<string, unknown>, success: string) => {
+  const updateOrder = async (order: Order, patch: SaleUpdate, success: string) => {
     const query = supabase.from("sales").update(patch);
     const { error } = order.items[0]?.order_id
       ? await query.eq("order_id", order.id)
