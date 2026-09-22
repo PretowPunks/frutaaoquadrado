@@ -52,7 +52,7 @@ export default function RouteMap({ tracks }: { tracks: Track[] }) {
           .addTo(group);
         L.circleMarker(lastPoint, {
           radius: 6,
-            color: t.color,
+          color: t.color,
           fillColor: t.color,
           fillOpacity: 1,
         })

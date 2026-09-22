@@ -200,11 +200,11 @@ function RotasPage() {
                 />
                 <div className="text-sm">
                   <p className="font-medium">{names[s.user_id] ?? "Vendedor"}</p>
-                <p className="text-xs text-muted-foreground">
-                  {formatDateTime(s.started_at)}
-                  {s.ended_at ? ` → ${formatTime(s.ended_at)}` : ""}
-                </p>
-                {s.start_city && <p className="text-xs text-muted-foreground">{s.start_city}</p>}
+                  <p className="text-xs text-muted-foreground">
+                    {formatDateTime(s.started_at)}
+                    {s.ended_at ? ` → ${formatTime(s.ended_at)}` : ""}
+                  </p>
+                  {s.start_city && <p className="text-xs text-muted-foreground">{s.start_city}</p>}
                   {!s.ended_at && <Badge className="mt-1">Em expediente</Badge>}
                   {selectedTrack?.points.length === 0 && (
                     <p className="mt-1 text-xs font-medium text-destructive">Sem pontos de GPS</p>
