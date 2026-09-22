@@ -20,7 +20,12 @@ export default function RouteMap({ tracks }: { tracks: Track[] }) {
       if (cancelled || !el.current) return;
 
       if (!mapRef.current) {
-        mapRef.current = L.map(el.current).setView([-12.97, -38.5], 7);
+        const mobile = window.matchMedia("(max-width: 767px)").matches;
+        mapRef.current = L.map(el.current, {
+          dragging: !mobile,
+          touchZoom: !mobile,
+          scrollWheelZoom: false,
+        }).setView([-12.97, -38.5], 7);
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: "© OpenStreetMap",
           maxZoom: 19,
@@ -39,12 +44,15 @@ export default function RouteMap({ tracks }: { tracks: Track[] }) {
         L.polyline(t.points, { color: t.color, weight: 4, opacity: 0.85 })
           .bindTooltip(t.label)
           .addTo(group);
-        L.circleMarker(t.points[0]!, { radius: 6, color: t.color, fillOpacity: 1 })
+        const firstPoint = t.points[0];
+        const lastPoint = t.points[t.points.length - 1];
+        if (!firstPoint || !lastPoint) continue;
+        L.circleMarker(firstPoint, { radius: 6, color: t.color, fillOpacity: 1 })
           .bindTooltip(`${t.label} — início`)
           .addTo(group);
-        L.circleMarker(t.points[t.points.length - 1]!, {
+        L.circleMarker(lastPoint, {
           radius: 6,
-          color: "#111",
+          color: t.color,
           fillColor: t.color,
           fillOpacity: 1,
         })
@@ -70,5 +78,11 @@ export default function RouteMap({ tracks }: { tracks: Track[] }) {
     [],
   );
 
-  return <div ref={el} className="h-[65vh] w-full rounded-lg border" />;
+  return (
+    <div
+      ref={el}
+      aria-label="Mapa das rotas selecionadas"
+      className="h-[55dvh] min-h-80 w-full touch-pan-y rounded-lg border md:h-[65vh]"
+    />
+  );
 }
