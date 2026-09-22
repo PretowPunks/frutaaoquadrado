@@ -16,4 +16,4 @@
 - [x] Validar mapa e vendas em desktop e celular
 
 - [x] Restaurar a rolagem nativa da janela em todo o aplicativo
-- [ ] Validar touchpad, roda do mouse e gesto de toque nas abas
+- [x] Validar touchpad, roda do mouse e gesto de toque nas abas
