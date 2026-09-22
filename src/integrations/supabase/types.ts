@@ -171,6 +171,7 @@ export type Database = {
           id: string
           invited_by: string | null
           name: string | null
+          status: string
           updated_at: string
         }
         Insert: {
@@ -182,6 +183,7 @@ export type Database = {
           id?: string
           invited_by?: string | null
           name?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -193,6 +195,7 @@ export type Database = {
           id?: string
           invited_by?: string | null
           name?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -253,11 +256,17 @@ export type Database = {
           customer_id: string | null
           delivery_date: string | null
           id: string
+          order_id: string | null
+          order_status: string | null
+          order_total: number | null
           owner_id: string | null
           payment_method: string
+          payment_status: string | null
           product_id: string
           quantity: number
           repassed_quantity: number
+          seller_name: string | null
+          seller_type: string | null
           status: Database["public"]["Enums"]["sale_status"]
           supplier_payment_id: string | null
           unit_cost: number
@@ -271,11 +280,17 @@ export type Database = {
           customer_id?: string | null
           delivery_date?: string | null
           id?: string
+          order_id?: string | null
+          order_status?: string | null
+          order_total?: number | null
           owner_id?: string | null
           payment_method?: string
+          payment_status?: string | null
           product_id: string
           quantity: number
           repassed_quantity?: number
+          seller_name?: string | null
+          seller_type?: string | null
           status?: Database["public"]["Enums"]["sale_status"]
           supplier_payment_id?: string | null
           unit_cost: number
@@ -289,11 +304,17 @@ export type Database = {
           customer_id?: string | null
           delivery_date?: string | null
           id?: string
+          order_id?: string | null
+          order_status?: string | null
+          order_total?: number | null
           owner_id?: string | null
           payment_method?: string
+          payment_status?: string | null
           product_id?: string
           quantity?: number
           repassed_quantity?: number
+          seller_name?: string | null
+          seller_type?: string | null
           status?: Database["public"]["Enums"]["sale_status"]
           supplier_payment_id?: string | null
           unit_cost?: number
@@ -582,6 +603,13 @@ export type Database = {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
+        }
+        Returns: boolean
+      }
+      sale_commits_stock: {
+        Args: {
+          _order_status: string
+          _status: Database["public"]["Enums"]["sale_status"]
         }
         Returns: boolean
       }
