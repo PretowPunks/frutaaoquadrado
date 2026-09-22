@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { ClientOnly } from "@tanstack/react-router";
 import { supabase } from "@/lib/mock-client";
 import { useAuth } from "@/hooks/use-auth";
@@ -77,6 +77,7 @@ function RotasPage() {
   const [names, setNames] = useState<Record<string, string>>({});
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [tracks, setTracks] = useState<Track[]>([]);
+  const mapSectionRef = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(async () => {
     const { data: sh } = await supabase
@@ -116,12 +117,18 @@ function RotasPage() {
         (grouped[p.shift_id] ??= []).push([Number(p.lat), Number(p.lng)]);
       }
       setTracks(
-        ids.map((id, i) => {
+        ids.map((id) => {
           const s = shifts.find((x) => x.id === id);
+          const shiftIndex = shifts.findIndex((shift) => shift.id === id);
           const label = `${names[s?.user_id ?? ""] ?? "Vendedor"} — ${
             s ? (validDate(s.started_at)?.toLocaleDateString("pt-BR") ?? "Data não disponível") : ""
           }`;
-          return { id, label, color: COLORS[i % COLORS.length]!, points: grouped[id] ?? [] };
+          return {
+            id,
+            label,
+            color: COLORS[Math.max(shiftIndex, 0) % COLORS.length] ?? COLORS[0] ?? "currentColor",
+            points: grouped[id] ?? [],
+          };
         }),
       );
     })();
@@ -129,9 +136,18 @@ function RotasPage() {
 
   const toggle = (id: string) => {
     const next = new Set(picked);
-    next.has(id) ? next.delete(id) : next.add(id);
+    const selecting = !next.has(id);
+    selecting ? next.add(id) : next.delete(id);
     setPicked(next);
+    if (selecting && window.matchMedia("(max-width: 1023px)").matches) {
+      window.setTimeout(
+        () => mapSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        80,
+      );
+    }
   };
+
+  const trackById = new Map(tracks.map((track) => [track.id, track]));
 
   if (!isAdmin) {
     return <Card className="p-8 text-center text-muted-foreground">Área exclusiva da matriz.</Card>;
@@ -161,7 +177,7 @@ function RotasPage() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="p-4 space-y-2 lg:col-span-1 max-h-[65vh] overflow-auto">
+        <Card className="space-y-2 p-4 lg:col-span-1 lg:max-h-[65vh] lg:overflow-y-auto">
           <div className="flex items-center gap-2 mb-1">
             <MapPinned className="h-4 w-4 text-primary" />
             <span className="font-semibold text-sm">Jornadas</span>
@@ -169,26 +185,37 @@ function RotasPage() {
           {shifts.length === 0 && (
             <p className="text-sm text-muted-foreground">Nenhuma jornada no período.</p>
           )}
-          {shifts.map((s) => (
-            <label
-              key={s.id}
-              className="flex items-start gap-2 p-2 rounded hover:bg-muted/50 cursor-pointer"
-            >
-              <Checkbox checked={picked.has(s.id)} onCheckedChange={() => toggle(s.id)} />
-              <div className="text-sm">
-                <p className="font-medium">{names[s.user_id] ?? "Vendedor"}</p>
+          {shifts.map((s, index) => {
+            const selectedTrack = trackById.get(s.id);
+            return (
+              <label
+                key={s.id}
+                className="flex cursor-pointer items-start gap-2 rounded p-2 hover:bg-muted/50"
+              >
+                <Checkbox checked={picked.has(s.id)} onCheckedChange={() => toggle(s.id)} />
+                <span
+                  aria-hidden="true"
+                  className={`mt-1 h-3 w-3 shrink-0 rounded-full border ${picked.has(s.id) ? "opacity-100" : "opacity-25"}`}
+                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                />
+                <div className="text-sm">
+                  <p className="font-medium">{names[s.user_id] ?? "Vendedor"}</p>
                 <p className="text-xs text-muted-foreground">
                   {formatDateTime(s.started_at)}
                   {s.ended_at ? ` → ${formatTime(s.ended_at)}` : ""}
                 </p>
                 {s.start_city && <p className="text-xs text-muted-foreground">{s.start_city}</p>}
-                {!s.ended_at && <Badge className="mt-1">Em expediente</Badge>}
-              </div>
-            </label>
-          ))}
+                  {!s.ended_at && <Badge className="mt-1">Em expediente</Badge>}
+                  {selectedTrack?.points.length === 0 && (
+                    <p className="mt-1 text-xs font-medium text-destructive">Sem pontos de GPS</p>
+                  )}
+                </div>
+              </label>
+            );
+          })}
         </Card>
 
-        <div className="lg:col-span-2">
+        <div ref={mapSectionRef} className="scroll-mt-4 lg:col-span-2">
           <ClientOnly
             fallback={
               <Card className="h-[65vh] flex items-center justify-center text-muted-foreground">
@@ -209,6 +236,9 @@ function RotasPage() {
           <p className="text-xs text-muted-foreground mt-2">
             {tracks.reduce((a, t) => a + t.points.length, 0)} pontos exibidos · mapa © OpenStreetMap
           </p>
+          {tracks.length > 0 && tracks.every((track) => track.points.length === 0) && (
+            <p className="mt-2 text-sm font-medium text-destructive">Sem pontos de GPS</p>
+          )}
         </div>
       </div>
     </div>

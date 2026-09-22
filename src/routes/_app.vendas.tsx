@@ -60,8 +60,8 @@ export const Route = createFileRoute("/_app/vendas")({
 type CartItem = { product_id: string; quantity: number; unit_sale_price: number };
 
 function VendasPage() {
-  const { productOwner, ownerId, isMatriz, isViewingRep } = useScope();
-  const { isAdmin } = useAuth();
+  const { productOwner, ownerId, isMatriz, isViewingRep, reps, viewingRepLabel } = useScope();
+  const { isAdmin, user } = useAuth();
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [sales, setSales] = useState<any[]>([]);
@@ -76,20 +76,21 @@ function VendasPage() {
   const [q, setQ] = useState("");
   const [periodMonth, setPeriodMonth] = useState<string>(""); // formato YYYY-MM
   const [filterProductId, setFilterProductId] = useState<string>("all");
+  const [filterRepresentativeId, setFilterRepresentativeId] = useState<string>("all");
 
   const load = async () => {
+    const salesQuery = supabase
+      .from("sales")
+      .select("*, products(name), customers(name)")
+      .order("created_at", { ascending: false })
+      .limit(500);
     const [{ data: p }, { data: c }, { data: s }] = await Promise.all([
       scopeProducts(
         supabase.from("products").select("*").order("name") as any,
         isAdmin ? null : productOwner,
       ),
       supabase.from("customers").select("*").eq("owner_id", ownerId).order("name"),
-      supabase
-        .from("sales")
-        .select("*, products(name), customers(name)")
-        .eq("owner_id", ownerId)
-        .order("created_at", { ascending: false })
-        .limit(500),
+      isAdmin ? salesQuery : salesQuery.eq("owner_id", ownerId),
     ]);
     setProducts(p ?? []);
     setCustomers(c ?? []);
@@ -148,6 +149,8 @@ function VendasPage() {
       delivery_date: status === "scheduled" ? deliveryDate : null,
       created_by: u.user?.id,
       owner_id: u.user?.id,
+      seller_name: isMatriz ? "Matriz" : viewingRepLabel || "Representante",
+      seller_type: isMatriz ? "matrix" : "representative",
     }));
     const { error } = await supabase.from("sales").insert(payload as any);
     if (error) return toast.error(error.message);
@@ -249,8 +252,22 @@ function VendasPage() {
   };
   const matchesProductFilter = (s: any) =>
     filterProductId === "all" || s.product_id === filterProductId;
+  const representativeIds = new Set(reps.map((rep) => rep.user_id));
+  const sellerLabel = (sale: any) => {
+    if (sale.seller_type === "matrix" || sale.seller_name === "Matriz") return "Matriz";
+    const representative = reps.find((rep) => rep.user_id === sale.owner_id);
+    if (representative) return representative.label.replace(/\s*\([^)]*\)$/, "");
+    return representativeIds.has(sale.owner_id) ? "Representante" : "Matriz";
+  };
+  const matchesRepresentativeFilter = (sale: any) => {
+    if (filterRepresentativeId === "all") return true;
+    if (filterRepresentativeId === "matrix") return sellerLabel(sale) === "Matriz";
+    return sale.owner_id === filterRepresentativeId;
+  };
 
-  const periodSales = sales.filter((s) => inPeriod(s) && matchesProductFilter(s));
+  const periodSales = sales.filter(
+    (s) => inPeriod(s) && matchesProductFilter(s) && matchesRepresentativeFilter(s),
+  );
   const periodItems = periodSales.reduce((a, s) => a + Number(s.quantity), 0);
   const periodValue = periodSales.reduce(
     (a, s) => a + Number(s.unit_sale_price) * Number(s.quantity),
@@ -267,6 +284,7 @@ function VendasPage() {
     return [
       s.products?.name ?? "",
       s.customers?.name ?? "",
+      sellerLabel(s),
       String(s.quantity),
       fmtBRL(s.unit_sale_price),
       fmtBRL(Number(s.unit_sale_price) * s.quantity),
@@ -281,6 +299,7 @@ function VendasPage() {
       created_at: (s) => new Date(s.created_at).getTime(),
       product: (s) => s.products?.name ?? "",
       customer: (s) => s.customers?.name ?? "",
+      representative: (s) => sellerLabel(s),
       quantity: (s) => s.quantity,
       unit_sale_price: (s) => Number(s.unit_sale_price),
       total: (s) => Number(s.unit_sale_price) * s.quantity,
@@ -490,7 +509,7 @@ function VendasPage() {
 
       <Card className="p-5 space-y-3">
         <h3 className="font-semibold">Consulta de itens vendidos</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div>
             <Label>Mês</Label>
             <Input
@@ -515,6 +534,25 @@ function VendasPage() {
               </SelectContent>
             </Select>
           </div>
+          {isAdmin && (
+            <div>
+              <Label>Representante</Label>
+              <Select value={filterRepresentativeId} onValueChange={setFilterRepresentativeId}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="matrix">Matriz</SelectItem>
+                  {reps.map((rep) => (
+                    <SelectItem key={rep.user_id} value={rep.user_id}>
+                      {rep.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="flex items-end">
             <Button
               variant="outline"
@@ -522,6 +560,7 @@ function VendasPage() {
               onClick={() => {
                 setPeriodMonth("");
                 setFilterProductId("all");
+                setFilterRepresentativeId("all");
               }}
             >
               Limpar filtros
@@ -567,6 +606,15 @@ function VendasPage() {
                 <SortHeader
                   label="Data"
                   sortKey="created_at"
+                  currentKey={sortKey}
+                  dir={sortDir}
+                  onToggle={toggle}
+                />
+              </th>
+              <th className="text-left p-3">
+                <SortHeader
+                  label="Representante"
+                  sortKey="representative"
                   currentKey={sortKey}
                   dir={sortDir}
                   onToggle={toggle}
@@ -635,6 +683,7 @@ function VendasPage() {
                 <td className="p-3">{new Date(s.created_at).toLocaleString("pt-BR")}</td>
                 <td className="p-3">{s.products?.name}</td>
                 <td className="p-3">{s.customers?.name ?? "—"}</td>
+                <td className="p-3 font-medium">{sellerLabel(s)}</td>
                 <td className="p-3 text-right">{s.quantity}</td>
                 <td className="p-3 text-right">{fmtBRL(s.unit_sale_price)}</td>
                 <td className="p-3 text-right font-semibold">
