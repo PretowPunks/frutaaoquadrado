@@ -10,7 +10,7 @@ import {
   ReceiptText,
   TrendingUp,
 } from "lucide-react";
-import { supabase } from "@/lib/mock-client";
+import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { fmtBRL } from "@/lib/format";
 

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import logoAsset from "@/assets/fruta2-logo.png.asset.json";
-import { resetMockData } from "@/lib/mock-client";
+import { Chrome } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { session, loading, roleLoading, signInAs } = useAuth();
+  const { session, loading, roleLoading, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
 
@@ -30,12 +30,12 @@ function LoginPage() {
     if (!loading && !roleLoading && session) navigate({ to: "/", replace: true });
   }, [session, loading, roleLoading, navigate]);
 
-  const handleLogin = async (role: "admin" | "user") => {
+  const handleLogin = async () => {
     setBusy(true);
     try {
-      await signInAs(role);
+      await signInWithGoogle();
     } catch {
-      toast.error("Não foi possível iniciar a demonstração");
+      toast.error("Não foi possível entrar com o Google");
       setBusy(false);
     }
   };
@@ -50,36 +50,17 @@ function LoginPage() {
             className="mx-auto h-auto w-64 max-w-full"
           />
           <h1 className="text-xl font-bold text-foreground">Controle de Estoque</h1>
-          <p className="text-muted-foreground">Modo demonstração local</p>
+          <p className="text-muted-foreground">Entre com sua conta Google autorizada</p>
         </div>
         <div className="space-y-3">
           <Button
-            onClick={() => handleLogin("admin")}
+            onClick={handleLogin}
             disabled={busy}
             className="w-full"
             size="lg"
           >
-            {busy ? "Entrando..." : "Entrar como Matriz"}
-          </Button>
-          <Button
-            onClick={() => handleLogin("user")}
-            disabled={busy}
-            className="w-full"
-            size="lg"
-            variant="secondary"
-          >
-            Entrar como Representante
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full text-xs"
-            onClick={() => {
-              resetMockData();
-              toast.success("Dados de demonstração restaurados");
-            }}
-          >
-            Restaurar dados de demonstração
+            <Chrome className="h-5 w-5" />
+            {busy ? "Entrando..." : "Entrar com Google"}
           </Button>
         </div>
       </Card>

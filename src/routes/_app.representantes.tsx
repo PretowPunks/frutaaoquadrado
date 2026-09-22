@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { CalendarRange, Clock, Pencil, Plus, Search, Trash2, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/mock-client";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
