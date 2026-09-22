@@ -82,7 +82,9 @@ function AppHeader() {
         <SidebarTrigger />
         <div className="min-w-0">
           <h1 className="truncate font-semibold">Controle de Estoque</h1>
-          <p className="text-[10px] font-medium uppercase text-muted-foreground">Dados sincronizados</p>
+          <p className="text-[10px] font-medium uppercase text-muted-foreground">
+            Dados sincronizados
+          </p>
         </div>
         {isAdmin && reps.length > 0 && (
           <div className="ml-auto flex min-w-0 items-center gap-2">

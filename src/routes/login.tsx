@@ -53,12 +53,7 @@ function LoginPage() {
           <p className="text-muted-foreground">Entre com sua conta Google autorizada</p>
         </div>
         <div className="space-y-3">
-          <Button
-            onClick={handleLogin}
-            disabled={busy}
-            className="w-full"
-            size="lg"
-          >
+          <Button onClick={handleLogin} disabled={busy} className="w-full" size="lg">
             <Chrome className="h-5 w-5" />
             {busy ? "Entrando..." : "Entrar com Google"}
           </Button>
