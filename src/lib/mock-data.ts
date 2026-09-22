@@ -43,6 +43,7 @@ export function createMockDatabase() {
         cities: ["Feira de Santana", "Serrinha"],
         accepted_user_id: MOCK_REP_ID,
         accepted_at: now(),
+        status: "active",
         invited_by: MOCK_ADMIN_ID,
         created_at: now(),
       },

@@ -97,14 +97,16 @@ function OrdersDeliveriesPage() {
     if (!isAdmin) return;
     void supabase
       .from("rep_invites")
-      .select("email, name, accepted_user_id")
+      .select("email, name, accepted_user_id, status")
       .not("accepted_user_id", "is", null)
       .then(({ data }) => {
         setRepresentatives(
-          ((data ?? []) as any[]).map((rep) => ({
-            user_id: rep.accepted_user_id,
-            label: rep.name || rep.email || "Representante",
-          })),
+          ((data ?? []) as any[])
+            .filter((rep) => rep.status !== "inactive")
+            .map((rep) => ({
+              user_id: rep.accepted_user_id,
+              label: rep.name || rep.email || "Representante",
+            })),
         );
       });
   }, [isAdmin]);
