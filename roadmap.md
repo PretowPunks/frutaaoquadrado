@@ -17,6 +17,6 @@
 
 - [x] Restaurar a rolagem nativa da janela em todo o aplicativo
 - [x] Validar touchpad, roda do mouse e gesto de toque nas abas
-- [ ] Reativar autenticação e banco do Lovable Cloud
-- [ ] Substituir o modo demonstrativo pelos dados reais
-- [ ] Validar login, permissões e telas principais
+- [x] Reativar autenticação e banco do Lovable Cloud
+- [x] Substituir o modo demonstrativo pelos dados reais
+- [x] Validar login, permissões e telas principais
