@@ -14,3 +14,6 @@
 - [x] Corrigir a rolagem móvel da lista até o mapa
 - [x] Identificar vendas diretas como Matriz e filtrar vendas por representante
 - [x] Validar mapa e vendas em desktop e celular
+
+- [x] Restaurar a rolagem nativa da janela em todo o aplicativo
+- [x] Validar touchpad, roda do mouse e gesto de toque nas abas
