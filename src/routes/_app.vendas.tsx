@@ -61,7 +61,7 @@ type CartItem = { product_id: string; quantity: number; unit_sale_price: number 
 
 function VendasPage() {
   const { productOwner, ownerId, isMatriz, isViewingRep, reps, viewingRepLabel } = useScope();
-  const { isAdmin, user } = useAuth();
+  const { isAdmin } = useAuth();
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [sales, setSales] = useState<any[]>([]);
@@ -681,9 +681,9 @@ function VendasPage() {
             {sorted.map((s) => (
               <tr key={s.id} className="border-t">
                 <td className="p-3">{new Date(s.created_at).toLocaleString("pt-BR")}</td>
+                <td className="p-3 font-medium">{sellerLabel(s)}</td>
                 <td className="p-3">{s.products?.name}</td>
                 <td className="p-3">{s.customers?.name ?? "—"}</td>
-                <td className="p-3 font-medium">{sellerLabel(s)}</td>
                 <td className="p-3 text-right">{s.quantity}</td>
                 <td className="p-3 text-right">{fmtBRL(s.unit_sale_price)}</td>
                 <td className="p-3 text-right font-semibold">

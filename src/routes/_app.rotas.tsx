@@ -218,14 +218,14 @@ function RotasPage() {
         <div ref={mapSectionRef} className="scroll-mt-4 lg:col-span-2">
           <ClientOnly
             fallback={
-              <Card className="h-[65vh] flex items-center justify-center text-muted-foreground">
+              <Card className="flex h-[55dvh] min-h-80 items-center justify-center text-muted-foreground md:h-[65vh]">
                 Carregando mapa...
               </Card>
             }
           >
             <Suspense
               fallback={
-                <Card className="h-[65vh] flex items-center justify-center text-muted-foreground">
+                <Card className="flex h-[55dvh] min-h-80 items-center justify-center text-muted-foreground md:h-[65vh]">
                   Carregando mapa...
                 </Card>
               }
