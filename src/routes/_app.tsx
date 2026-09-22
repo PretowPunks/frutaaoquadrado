@@ -58,11 +58,11 @@ function AppLayout() {
   return (
     <ScopeProvider>
       <SidebarProvider>
-        <div className="flex min-h-screen w-full min-w-0">
+        <div className="flex min-h-dvh w-full min-w-0 items-stretch">
           <AppSidebar />
-          <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
             <AppHeader />
-            <main className="min-w-0 flex-1 overflow-x-hidden bg-muted/30 p-3 sm:p-6">
+            <main className="min-w-0 flex-1 bg-muted/30 p-3 sm:p-6">
               <Outlet />
             </main>
           </div>
