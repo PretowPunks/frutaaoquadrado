@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { supabase } from "@/lib/mock-client";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -180,13 +180,18 @@ function CampoPage() {
             <MapPin className="h-5 w-5 text-primary" />
             <span className="font-semibold">Jornada</span>
           </div>
-          {shift ? <Badge>Em expediente</Badge> : <Badge variant="secondary">Fora de expediente</Badge>}
+          {shift ? (
+            <Badge>Em expediente</Badge>
+          ) : (
+            <Badge variant="secondary">Fora de expediente</Badge>
+          )}
         </div>
 
         {shift ? (
           <>
             <p className="text-sm text-muted-foreground">
-              Início: <strong className="text-foreground">{formatDateTime(shift.started_at)}</strong>
+              Início:{" "}
+              <strong className="text-foreground">{formatDateTime(shift.started_at)}</strong>
               {shift.start_city ? ` · ${shift.start_city}` : ""}
             </p>
             <p className="text-sm text-muted-foreground">
@@ -200,14 +205,18 @@ function CampoPage() {
           <>
             <div>
               <Label>Município inicial (opcional)</Label>
-              <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ex.: Feira de Santana" />
+              <Input
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Ex.: Feira de Santana"
+              />
             </div>
             <Button className="w-full h-12 text-base" onClick={startShift} disabled={!consent}>
               <Play className="h-5 w-5 mr-2" /> Iniciar Expediente
             </Button>
             <p className="text-xs text-muted-foreground flex items-start gap-2">
-              <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5" />A localização é registrada apenas entre o início e o
-              encerramento do expediente.
+              <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5" />A localização é registrada apenas
+              entre o início e o encerramento do expediente.
             </p>
           </>
         )}
@@ -222,17 +231,19 @@ function CampoPage() {
           <div className="text-sm space-y-2 max-h-64 overflow-auto text-muted-foreground">
             <p>
               A Fruta² coleta sua localização geográfica{" "}
-              <strong>exclusivamente durante o expediente de trabalho</strong>, com a finalidade de registrar a rota de
-              atendimento entre os municípios e permitir auditoria das visitas.
+              <strong>exclusivamente durante o expediente de trabalho</strong>, com a finalidade de
+              registrar a rota de atendimento entre os municípios e permitir auditoria das visitas.
             </p>
             <p>
               O rastreamento começa quando você clica em <strong>Iniciar Expediente</strong> e é{" "}
-              <strong>interrompido imediatamente</strong> ao clicar em <strong>Encerrar Expediente</strong>. Fora desse
-              período nenhum dado de localização é coletado.
+              <strong>interrompido imediatamente</strong> ao clicar em{" "}
+              <strong>Encerrar Expediente</strong>. Fora desse período nenhum dado de localização é
+              coletado.
             </p>
             <p>
-              Os dados são armazenados de forma segura, acessíveis apenas a você e à administração da empresa, e podem
-              ser solicitados para consulta ou exclusão a qualquer momento, conforme a Lei nº 13.709/2018 (LGPD).
+              Os dados são armazenados de forma segura, acessíveis apenas a você e à administração
+              da empresa, e podem ser solicitados para consulta ou exclusão a qualquer momento,
+              conforme a Lei nº 13.709/2018 (LGPD).
             </p>
           </div>
           <label className="flex items-start gap-2 text-sm">

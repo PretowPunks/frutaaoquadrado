@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/mock-client";
+import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { Database } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/_app/vendas")({
   head: () => ({
@@ -58,6 +59,7 @@ export const Route = createFileRoute("/_app/vendas")({
 });
 
 type CartItem = { product_id: string; quantity: number; unit_sale_price: number };
+type SaleUpdate = Database["public"]["Tables"]["sales"]["Update"];
 
 function VendasPage() {
   const { productOwner, ownerId, isMatriz, isViewingRep, reps, viewingRepLabel } = useScope();
@@ -173,7 +175,7 @@ function VendasPage() {
 
   const setOrderSituation = async (s: any, next: "pending" | "scheduled" | "delivered") => {
     if (!isAdmin) return toast.error("Somente a Matriz pode alterar a situação do pedido.");
-    const patch = {
+    const patch: SaleUpdate = {
       order_status: next,
       status: next === "delivered" ? "paid" : "scheduled",
       delivery_date: s.delivery_date,
