@@ -166,15 +166,13 @@ function RepresentantesPage() {
     const cities = parseCities(citiesText);
     if (!normalizedEmail.includes("@")) return toast.error("Informe um e-mail válido");
     if (!cities.length) return toast.error("Informe ao menos uma cidade de atuação");
-    const { error } = await supabase
-      .from("rep_invites")
-      .insert({
-        email: normalizedEmail,
-        name: name.trim() || null,
-        cities,
-        status: "active",
-        invited_by: user?.id ?? null,
-      });
+    const { error } = await supabase.from("rep_invites").insert({
+      email: normalizedEmail,
+      name: name.trim() || null,
+      cities,
+      status: "active",
+      invited_by: user?.id ?? null,
+    });
     if (error) return toast.error(error.message);
     toast.success("Representante convidado. Ele já pode entrar com o Google.");
     setEmail("");
