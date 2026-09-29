@@ -20,3 +20,6 @@
 - [x] Reativar autenticação e banco do Lovable Cloud
 - [x] Substituir o modo demonstrativo pelos dados reais
 - [x] Validar login, permissões e telas principais
+
+- [x] Trocar autenticação e dados para o Supabase externo
+- [x] Validar conexão externa e tela de login
