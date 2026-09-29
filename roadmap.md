@@ -22,4 +22,4 @@
 - [x] Validar login, permissões e telas principais
 
 - [x] Trocar autenticação e dados para o Supabase externo
-- [ ] Validar conexão externa e tela de login
+- [x] Validar conexão externa e tela de login
