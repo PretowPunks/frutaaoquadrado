@@ -49,7 +49,6 @@ function LoginPage() {
             alt="Fruta² — muito mais polpa"
             className="mx-auto h-auto w-64 max-w-full"
           />
-          <h1 className="text-xl font-bold text-foreground">Controle de Estoque</h1>
           <p className="text-muted-foreground">Entre com sua conta Google autorizada</p>
         </div>
         <div className="space-y-3">

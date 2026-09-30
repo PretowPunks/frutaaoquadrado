@@ -27,3 +27,4 @@
 - [x] Padronizar o nome instalado como Fruta²
 - [x] Atualizar logo, favicon e ícones de instalação
 - [x] Validar identidade visual e manifesto em computador e celular
+- [x] Remover “Controle de Estoque” da tela de login
