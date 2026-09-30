@@ -77,14 +77,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         name: "viewport",
         content: "width=device-width, initial-scale=1, viewport-fit=cover",
       },
-      { title: "Fruta ² - Gerenciador" },
+      { title: "Fruta²" },
       { name: "description", content: "Sistema de controle de estoque, vendas e clientes" },
-      { property: "og:title", content: "Fruta ² - Gerenciador" },
+      { property: "og:title", content: "Fruta²" },
       { property: "og:description", content: "Sistema de controle de estoque, vendas e clientes" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Fruta ² - Gerenciador" },
+      { name: "twitter:title", content: "Fruta²" },
       { name: "twitter:description", content: "Sistema de controle de estoque, vendas e clientes" },
       {
         property: "og:image",
@@ -106,6 +105,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "icon",
         type: "image/png",
         href: "/favicon.png",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "/apple-touch-icon.png",
+      },
+      {
+        rel: "manifest",
+        href: "/manifest.webmanifest",
       },
       {
         rel: "stylesheet",

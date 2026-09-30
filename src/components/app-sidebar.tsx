@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import logoAsset from "@/assets/fruta2-logo.png.asset.json";
+import logoAsset from "@/assets/fruta2-logo-oficial.png.asset.json";
 
 const adminOperationItems = [
   { title: "Painel", url: "/", icon: LayoutDashboard },

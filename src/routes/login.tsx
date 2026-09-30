@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import logoAsset from "@/assets/fruta2-logo.png.asset.json";
+import logoAsset from "@/assets/fruta2-logo-oficial.png.asset.json";
 import { Chrome } from "lucide-react";
 
 export const Route = createFileRoute("/login")({

@@ -23,3 +23,7 @@
 
 - [x] Trocar autenticação e dados para o Supabase externo
 - [x] Validar conexão externa e tela de login
+
+- [x] Padronizar o nome instalado como Fruta²
+- [x] Atualizar logo, favicon e ícones de instalação
+- [ ] Validar identidade visual e manifesto em computador e celular
