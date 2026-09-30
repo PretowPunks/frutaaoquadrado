@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BackgroundGeolocation } from "@capacitor-community/background-geolocation";
-import type { Location as BackgroundLocation } from "@capacitor-community/background-geolocation";
-import { Capacitor, CapacitorHttp } from "@capacitor/core";
+import type {
+  BackgroundGeolocationPlugin,
+  CallbackError,
+  Location as BackgroundLocation,
+} from "@capacitor-community/background-geolocation";
+import { Capacitor, CapacitorHttp, registerPlugin } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -48,6 +51,7 @@ export const Route = createFileRoute("/_app/campo")({
 const CONSENT_VERSION = "v1";
 const MIN_INTERVAL_MS = 45000;
 const NATIVE_WATCHER_STORAGE_KEY = "fruta2_native_gps_watcher";
+const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>("BackgroundGeolocation");
 
 type Shift = { id: string; started_at: string; ended_at: string | null; start_city: string | null };
 
@@ -191,7 +195,7 @@ function CampoPage() {
             stale: false,
             distanceFilter: 15,
           },
-          (position, error) => {
+          (position?: BackgroundLocation, error?: CallbackError) => {
             if (error) {
               console.error("Falha no GPS em segundo plano:", error);
               return;
