@@ -4,4 +4,7 @@
     <string name="title_activity_main">Fruta²</string>
     <string name="package_name">com.fruta2.gerenciador</string>
     <string name="custom_url_scheme">com.fruta2.gerenciador</string>
+    <string name="capacitor_background_geolocation_notification_channel_name">Expediente e rota</string>
+    <string name="capacitor_background_geolocation_notification_icon">mipmap/ic_launcher</string>
+    <string name="capacitor_background_geolocation_notification_color">#F56600</string>
 </resources>
