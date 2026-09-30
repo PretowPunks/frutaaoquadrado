@@ -276,12 +276,12 @@ function CampoPage() {
 
   const endShift = async () => {
     if (!shift) return;
-    await stopAllTracking();
     const { error } = await supabase
       .from("work_shifts")
       .update({ ended_at: new Date().toISOString() })
       .eq("id", shift.id);
     if (error) return toast.error(error.message);
+    await stopAllTracking();
     setShift(null);
     toast.success("Expediente encerrado — rastreamento interrompido.");
   };

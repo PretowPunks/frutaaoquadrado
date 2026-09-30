@@ -32,4 +32,4 @@
 - [x] Configurar o Capacitor Android para instalar o app como Fruta²
 - [x] Manter o GPS e a gravação no Supabase durante o expediente em segundo plano
 - [x] Criar o GitHub Actions para gerar e disponibilizar o APK
-- [x] Validar tipos, configuração nativa e processo de compilação automatizado
+- [x] Validar tipos e configurar o processo de compilação automatizado
