@@ -10,6 +10,9 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import type { Session, User } from "@supabase/supabase-js";
+import { App } from "@capacitor/app";
+import { Browser } from "@capacitor/browser";
+import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/external-supabase/client";
 
 type Role = "admin" | "user" | null;
@@ -28,6 +31,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const ROLE_TIMEOUT_MS = 8000;
+const NATIVE_AUTH_REDIRECT = "com.fruta2.gerenciador://auth";
 
 function withTimeout<T>(promise: PromiseLike<T>, ms = ROLE_TIMEOUT_MS): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -153,6 +157,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [clearAuthState, resolveSession]);
 
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let disposed = false;
+    const listener = App.addListener("appUrlOpen", async ({ url }) => {
+      if (!url.startsWith(NATIVE_AUTH_REDIRECT)) return;
+
+      try {
+        const callbackUrl = new URL(url);
+        const query = callbackUrl.searchParams;
+        const fragment = new URLSearchParams(callbackUrl.hash.replace(/^#/, ""));
+        const authError = query.get("error_description") ?? fragment.get("error_description");
+
+        if (authError) throw new Error(authError);
+
+        const code = query.get("code");
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+        } else {
+          const accessToken = fragment.get("access_token") ?? query.get("access_token");
+          const refreshToken = fragment.get("refresh_token") ?? query.get("refresh_token");
+          if (!accessToken || !refreshToken) {
+            throw new Error("O retorno do Google não contém uma sessão válida");
+          }
+
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) throw error;
+        }
+
+        await Browser.close();
+      } catch (error) {
+        console.error("Não foi possível concluir o login no aplicativo", error);
+        await Browser.close().catch(() => undefined);
+      }
+    });
+
+    return () => {
+      disposed = true;
+      void listener.then((handle) => handle.remove());
+    };
+  }, []);
+
   const signOut = useCallback(async () => {
     clearAuthState();
     window.localStorage.removeItem("fruta2:viewAs");
@@ -170,11 +220,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearAuthState, navigate, queryClient, router]);
 
   const signInWithGoogle = useCallback(async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const isNative = Capacitor.isNativePlatform();
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: {
+        redirectTo: isNative ? NATIVE_AUTH_REDIRECT : window.location.origin,
+        skipBrowserRedirect: isNative,
+      },
     });
     if (error) throw error;
+
+    if (isNative) {
+      if (!data.url) throw new Error("Não foi possível iniciar o login com o Google");
+      await Browser.open({ url: data.url });
+    }
   }, []);
 
   return (
