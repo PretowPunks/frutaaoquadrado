@@ -160,7 +160,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
-    let disposed = false;
     const listener = App.addListener("appUrlOpen", async ({ url }) => {
       if (!url.startsWith(NATIVE_AUTH_REDIRECT)) return;
 
@@ -198,7 +197,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => {
-      disposed = true;
       void listener.then((handle) => handle.remove());
     };
   }, []);
