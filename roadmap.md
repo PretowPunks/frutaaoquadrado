@@ -36,4 +36,4 @@
 
 - [x] Registrar o retorno do login Google por Deep Link no Android
 - [x] Completar as permissões Android de localização e serviço em primeiro plano
-- [ ] Sincronizar e validar o projeto Android após os novos plugins
+- [x] Sincronizar e validar o projeto Android após os novos plugins
