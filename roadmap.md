@@ -33,3 +33,7 @@
 - [x] Manter o GPS e a gravação no Supabase durante o expediente em segundo plano
 - [x] Criar o GitHub Actions para gerar e disponibilizar o APK
 - [x] Validar tipos e configurar o processo de compilação automatizado
+
+- [x] Registrar o retorno do login Google por Deep Link no Android
+- [x] Completar as permissões Android de localização e serviço em primeiro plano
+- [x] Sincronizar e validar o projeto Android após os novos plugins
