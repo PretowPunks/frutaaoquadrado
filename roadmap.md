@@ -28,3 +28,8 @@
 - [x] Atualizar logo, favicon e ícones de instalação
 - [x] Validar identidade visual e manifesto em computador e celular
 - [x] Remover “Controle de Estoque” da tela de login
+
+- [x] Configurar o Capacitor Android para instalar o app como Fruta²
+- [x] Manter o GPS e a gravação no Supabase durante o expediente em segundo plano
+- [x] Criar o GitHub Actions para gerar e disponibilizar o APK
+- [x] Validar tipos, configuração nativa e processo de compilação automatizado
