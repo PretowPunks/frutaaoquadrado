@@ -26,4 +26,4 @@
 
 - [x] Padronizar o nome instalado como Fruta²
 - [x] Atualizar logo, favicon e ícones de instalação
-- [ ] Validar identidade visual e manifesto em computador e celular
+- [x] Validar identidade visual e manifesto em computador e celular
