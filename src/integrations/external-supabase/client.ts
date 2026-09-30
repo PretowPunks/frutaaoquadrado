@@ -3,8 +3,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { brokeredPreviewStorage } from "@/integrations/supabase/previewAuthStorage";
 
 export const EXTERNAL_SUPABASE_URL = "https://mgpvnewdfqmzxohtdlou.supabase.co";
-export const EXTERNAL_SUPABASE_PUBLISHABLE_KEY =
-  "sb_publishable_wQRrnkGVCzHktSA39rWOcA_PRvJcLz1";
+export const EXTERNAL_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_wQRrnkGVCzHktSA39rWOcA_PRvJcLz1";
 
 function externalFetch(input: RequestInfo | URL, init?: RequestInit) {
   const headers = new Headers(
