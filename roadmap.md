@@ -37,4 +37,5 @@
 - [x] Configurar retorno do login Google por link do aplicativo Android
 - [x] Completar permissões Android para GPS contínuo e notificações
 - [x] Limitar a persistência nativa de coordenadas ao intervalo de 45 segundos
-- [ ] Sincronizar e validar a compilação Android
+- [x] Sincronizar o projeto Android e validar tipos e compilação web
+- [ ] Validar o APK localmente (bloqueado pela licença do Android SDK no ambiente; automação do GitHub permanece configurada)
