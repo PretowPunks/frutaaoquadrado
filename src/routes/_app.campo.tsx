@@ -129,6 +129,9 @@ function CampoPage() {
 
   const saveNativePoint = useCallback(
     async (shiftId: string, position: BackgroundLocation) => {
+      const now = Date.now();
+      if (now - lastRef.current < MIN_INTERVAL_MS) return;
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -157,6 +160,7 @@ function CampoPage() {
       if (response.status < 200 || response.status >= 300) {
         throw new Error(`Falha ao salvar coordenada (${response.status}).`);
       }
+      lastRef.current = now;
       setPoints((value) => value + 1);
     },
     [user],
@@ -182,18 +186,18 @@ function CampoPage() {
           window.localStorage.removeItem(NATIVE_WATCHER_STORAGE_KEY);
         }
 
-        const notificationPermission = await LocalNotifications.checkPermissions();
-        if (notificationPermission.display === "prompt") {
-          await LocalNotifications.requestPermissions();
+        const notificationPermission = await LocalNotifications.requestPermissions();
+        if (notificationPermission.display === "denied") {
+          throw new Error("A permissão de notificações foi negada.");
         }
 
         const watcherId = await BackgroundGeolocation.addWatcher(
           {
-            backgroundTitle: "Fruta² — expediente em andamento",
-            backgroundMessage: "Registrando sua rota mesmo com a tela bloqueada.",
+            backgroundTitle: "Fruta² - Expediente em Andamento",
+            backgroundMessage: "Rastreando rota do expediente",
             requestPermissions: true,
             stale: false,
-            distanceFilter: 15,
+            distanceFilter: 0,
           },
           (position?: BackgroundLocation, error?: CallbackError) => {
             if (error) {

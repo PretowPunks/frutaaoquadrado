@@ -33,3 +33,8 @@
 - [x] Manter o GPS e a gravação no Supabase durante o expediente em segundo plano
 - [x] Criar o GitHub Actions para gerar e disponibilizar o APK
 - [x] Validar tipos e configurar o processo de compilação automatizado
+
+- [x] Configurar retorno do login Google por link do aplicativo Android
+- [x] Completar permissões Android para GPS contínuo e notificações
+- [x] Limitar a persistência nativa de coordenadas ao intervalo de 45 segundos
+- [ ] Sincronizar e validar a compilação Android
