@@ -10,6 +10,9 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import type { Session, User } from "@supabase/supabase-js";
+import { App } from "@capacitor/app";
+import { Browser } from "@capacitor/browser";
+import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/external-supabase/client";
 
 type Role = "admin" | "user" | null;
@@ -28,6 +31,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const ROLE_TIMEOUT_MS = 8000;
+const NATIVE_AUTH_CALLBACK = "com.fruta2.gerenciador://auth";
 
 function withTimeout<T>(promise: PromiseLike<T>, ms = ROLE_TIMEOUT_MS): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -153,6 +157,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [clearAuthState, resolveSession]);
 
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let active = true;
+    const listener = App.addListener("appUrlOpen", async ({ url }) => {
+      if (!active || !url.startsWith(NATIVE_AUTH_CALLBACK)) return;
+
+      try {
+        await Browser.close().catch(() => undefined);
+        const callbackUrl = new URL(url);
+        const hash = new URLSearchParams(callbackUrl.hash.replace(/^#/, ""));
+        const accessToken = hash.get("access_token");
+        const refreshToken = hash.get("refresh_token");
+        const code = callbackUrl.searchParams.get("code");
+
+        let nextSession: Session | null = null;
+        if (accessToken && refreshToken) {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) throw error;
+          nextSession = data.session;
+        } else if (code) {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+          nextSession = data.session;
+        } else {
+          throw new Error("O retorno do Google não contém uma sessão válida.");
+        }
+
+        await resolveSession(nextSession);
+        if (!active || !nextSession) return;
+        await navigate({ to: "/", replace: true });
+        await router.invalidate();
+      } catch (error) {
+        console.error("Não foi possível concluir o login no Android", error);
+        if (active) clearAuthState();
+      }
+    });
+
+    return () => {
+      active = false;
+      void listener.then((handle) => handle.remove());
+    };
+  }, [clearAuthState, navigate, resolveSession, router]);
+
   const signOut = useCallback(async () => {
     clearAuthState();
     window.localStorage.removeItem("fruta2:viewAs");
@@ -170,11 +221,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearAuthState, navigate, queryClient, router]);
 
   const signInWithGoogle = useCallback(async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const native = Capacitor.isNativePlatform();
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: native
+        ? { redirectTo: NATIVE_AUTH_CALLBACK, skipBrowserRedirect: true }
+        : { redirectTo: window.location.origin },
     });
     if (error) throw error;
+    if (native) {
+      if (!data.url) throw new Error("Não foi possível abrir o login do Google.");
+      await Browser.open({ url: data.url, windowName: "_system" });
+    }
   }, []);
 
   return (
