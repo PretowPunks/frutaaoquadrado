@@ -214,19 +214,25 @@ function ProdutosPage() {
             break;
           }
         }
-        if (!saved) throw new Error("O saldo mudou ou não há permissão para atualizar o produto. Tente novamente.");
+        if (!saved)
+          throw new Error(
+            "O saldo mudou ou não há permissão para atualizar o produto. Tente novamente.",
+          );
       }
       toast.success(`Lote registrado com ${rows.length} produto(s).`);
       closeLotDialog();
       await load();
     } catch (error) {
-      const message = error && typeof error === "object" && "message" in error
-        ? String(error.message)
-        : "Não foi possível registrar o lote.";
+      const message =
+        error && typeof error === "object" && "message" in error
+          ? String(error.message)
+          : "Não foi possível registrar o lote.";
       if (savedProductIds.size > 0) {
         setLotItems((current) => current.filter((item) => !savedProductIds.has(item.product_id)));
         await load();
-        toast.error(`Entrada parcial: ${savedProductIds.size} produto(s) atualizado(s). Restaram apenas os itens não salvos. ${message}`);
+        toast.error(
+          `Entrada parcial: ${savedProductIds.size} produto(s) atualizado(s). Restaram apenas os itens não salvos. ${message}`,
+        );
       } else {
         toast.error(message);
       }
@@ -329,7 +335,10 @@ function ProdutosPage() {
                 <DialogHeader>
                   <DialogTitle>Registrar Entrada de Lote</DialogTitle>
                 </DialogHeader>
-                <fieldset disabled={savingLot} className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+                <fieldset
+                  disabled={savingLot}
+                  className="max-h-[60vh] space-y-3 overflow-y-auto pr-1"
+                >
                   {lotItems.map((item, index) => (
                     <div
                       key={index}
@@ -372,7 +381,10 @@ function ProdutosPage() {
                           step="0.01"
                           value={item.unit_cost}
                           onChange={(event) =>
-                            updateLotItem(index, { unit_cost: event.target.value === "" ? "" : Number(event.target.value) })
+                            updateLotItem(index, {
+                              unit_cost:
+                                event.target.value === "" ? "" : Number(event.target.value),
+                            })
                           }
                         />
                       </div>
