@@ -40,5 +40,5 @@
 - [x] Sincronizar o projeto Android e validar tipos e compilação web
 - [ ] Validar o APK localmente (bloqueado pela licença do Android SDK no ambiente; automação do GitHub permanece configurada)
 
-- [ ] Atualizar entrada de lote diretamente em products, preservando custo não informado
-- [ ] Validar somas, produtos repetidos e falhas sem duplicar entradas
+- [x] Atualizar entrada de lote diretamente em products, preservando custo não informado
+- [x] Validar somas, produtos repetidos e falhas sem duplicar entradas
