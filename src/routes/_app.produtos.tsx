@@ -53,7 +53,7 @@ type Product = {
   low_stock_threshold: number;
 };
 
-type LotItem = { product_id: string; quantity: number; unit_cost: number };
+type LotItem = { product_id: string; quantity: number; unit_cost: number | "" };
 
 const emptyLotItem = (): LotItem => ({ product_id: "", quantity: 1, unit_cost: 0 });
 
@@ -70,6 +70,7 @@ function ProdutosPage() {
   const [openReplenish, setOpenReplenish] = useState(false);
   const [openLot, setOpenLot] = useState(false);
   const [lotItems, setLotItems] = useState<LotItem[]>([emptyLotItem()]);
+  const [savingLot, setSavingLot] = useState(false);
 
   const load = async () => {
     // Representantes consultam o catálogo central; somente a matriz o administra.
@@ -153,13 +154,17 @@ function ProdutosPage() {
 
   const registerLot = async () => {
     if (!isAdmin) return toast.error("Apenas a matriz pode registrar entradas.");
+    if (savingLot) return;
+    setSavingLot(true);
+    const savedProductIds = new Set<string>();
     try {
+      if (lotItems.length === 0) throw new Error("Adicione ao menos um produto ao lote.");
       const rows = lotItems.map((item, index) => {
         const product = products.find((candidate) => candidate.id === item.product_id);
         if (!product) throw new Error(`Linha ${index + 1}: selecione um produto.`);
-        if (!Number.isFinite(item.quantity) || item.quantity < 1)
+        if (!Number.isSafeInteger(item.quantity) || item.quantity < 1)
           throw new Error(`Linha ${index + 1}: informe uma quantidade válida.`);
-        if (!Number.isFinite(item.unit_cost) || item.unit_cost < 0)
+        if (item.unit_cost !== "" && (!Number.isFinite(item.unit_cost) || item.unit_cost < 0))
           throw new Error(`Linha ${index + 1}: informe um valor de entrada válido.`);
         return {
           product_id: product.id,
@@ -167,20 +172,66 @@ function ProdutosPage() {
           unit_cost: item.unit_cost,
         };
       });
-      const { data: auth } = await supabase.auth.getUser();
-      const { error } = await supabase.from("stock_entries").insert(
-        rows.map((row) => ({
+      const grouped = new Map<string, (typeof rows)[number]>();
+      for (const row of rows) {
+        const previous = grouped.get(row.product_id);
+        const quantity = (previous?.quantity ?? 0) + row.quantity;
+        if (!Number.isSafeInteger(quantity)) throw new Error("Quantidade total inválida.");
+        grouped.set(row.product_id, {
           ...row,
-          created_by: auth.user?.id,
-          owner_id: auth.user?.id,
-        })),
-      );
-      if (error) return toast.error(error.message);
+          quantity,
+          unit_cost: row.unit_cost === "" ? (previous?.unit_cost ?? "") : row.unit_cost,
+        });
+      }
+      for (const row of grouped.values()) {
+        let saved = false;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const { data: current, error: readError } = await supabase
+            .from("products")
+            .select("stock_quantity")
+            .eq("id", row.product_id)
+            .is("owner_id", null)
+            .single();
+          if (readError) throw readError;
+          if (!current) throw new Error("Produto não encontrado no estoque da matriz.");
+          const stockQuantity = Number(current.stock_quantity) + row.quantity;
+          if (!Number.isSafeInteger(stockQuantity) || stockQuantity > 2147483647)
+            throw new Error("Quantidade acima do limite do estoque.");
+          const { data: updated, error: updateError } = await supabase
+            .from("products")
+            .update({
+              stock_quantity: stockQuantity,
+              ...(row.unit_cost === "" ? {} : { cost_price: row.unit_cost }),
+            })
+            .eq("id", row.product_id)
+            .is("owner_id", null)
+            .eq("stock_quantity", current.stock_quantity)
+            .select("id");
+          if (updateError) throw updateError;
+          if (updated?.length) {
+            savedProductIds.add(row.product_id);
+            saved = true;
+            break;
+          }
+        }
+        if (!saved) throw new Error("O saldo mudou ou não há permissão para atualizar o produto. Tente novamente.");
+      }
       toast.success(`Lote registrado com ${rows.length} produto(s).`);
       closeLotDialog();
       await load();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível registrar o lote.");
+      const message = error && typeof error === "object" && "message" in error
+        ? String(error.message)
+        : "Não foi possível registrar o lote.";
+      if (savedProductIds.size > 0) {
+        setLotItems((current) => current.filter((item) => !savedProductIds.has(item.product_id)));
+        await load();
+        toast.error(`Entrada parcial: ${savedProductIds.size} produto(s) atualizado(s). Restaram apenas os itens não salvos. ${message}`);
+      } else {
+        toast.error(message);
+      }
+    } finally {
+      setSavingLot(false);
     }
   };
 
@@ -264,6 +315,7 @@ function ProdutosPage() {
             <Dialog
               open={openLot}
               onOpenChange={(nextOpen) => {
+                if (savingLot) return;
                 setOpenLot(nextOpen);
                 if (!nextOpen) setLotItems([emptyLotItem()]);
               }}
@@ -277,7 +329,7 @@ function ProdutosPage() {
                 <DialogHeader>
                   <DialogTitle>Registrar Entrada de Lote</DialogTitle>
                 </DialogHeader>
-                <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+                <fieldset disabled={savingLot} className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
                   {lotItems.map((item, index) => (
                     <div
                       key={index}
@@ -320,7 +372,7 @@ function ProdutosPage() {
                           step="0.01"
                           value={item.unit_cost}
                           onChange={(event) =>
-                            updateLotItem(index, { unit_cost: Number(event.target.value) })
+                            updateLotItem(index, { unit_cost: event.target.value === "" ? "" : Number(event.target.value) })
                           }
                         />
                       </div>
@@ -352,16 +404,18 @@ function ProdutosPage() {
                   >
                     <Plus className="h-4 w-4 mr-2" /> Adicionar produto
                   </Button>
-                </div>
+                </fieldset>
                 <div className="flex items-center justify-between border-t pt-3">
                   <span className="text-sm text-muted-foreground">Total do lote</span>
                   <strong className="text-lg">{fmtBRL(lotTotal)}</strong>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={closeLotDialog}>
+                  <Button variant="outline" onClick={closeLotDialog} disabled={savingLot}>
                     Cancelar
                   </Button>
-                  <Button onClick={registerLot}>Registrar entrada</Button>
+                  <Button onClick={registerLot} disabled={savingLot}>
+                    {savingLot ? "Registrando..." : "Registrar entrada"}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
