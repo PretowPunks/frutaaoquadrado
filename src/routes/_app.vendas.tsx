@@ -15,7 +15,14 @@ import {
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Search, Plus, X } from "lucide-react";
+import { Trash2, Search, Plus, X, Pencil } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useSort, SortHeader } from "@/hooks/use-sort";
 import { useScope, scopeProducts } from "@/hooks/use-scope";
 import { useAuth } from "@/hooks/use-auth";
@@ -132,7 +139,7 @@ function VendasPage() {
       const p = products.find((x) => x.id === it.product_id);
       if (!p) return toast.error(`Linha ${i + 1}: selecione um produto`);
       if (it.quantity < 1) return toast.error(`Linha ${i + 1}: quantidade inválida`);
-      if (status !== "scheduled" && it.quantity > p.stock_quantity)
+      if (it.quantity > p.stock_quantity)
         return toast.error(`${p.name}: estoque insuficiente (${p.stock_quantity})`);
       rows.push({
         product_id: p.id,
@@ -197,6 +204,76 @@ function VendasPage() {
     const { error } = await supabase.from("sales").delete().eq("id", s.id);
     if (error) return toast.error(error.message);
     toast.success("Venda excluída, estoque restaurado");
+    load();
+  };
+
+  const [editing, setEditing] = useState<{
+    id: string;
+    product_id: string;
+    customer_id: string;
+    quantity: string;
+    unit_sale_price: string;
+    delivery_date: string;
+    isScheduled: boolean;
+    owner_id: string;
+  } | null>(null);
+  const [editCustomers, setEditCustomers] = useState<any[]>([]);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const openEdit = async (s: any) => {
+    setEditing({
+      id: s.id,
+      product_id: s.product_id,
+      customer_id: s.customer_id ?? "",
+      quantity: String(s.quantity),
+      unit_sale_price: String(s.unit_sale_price),
+      delivery_date: s.delivery_date ?? "",
+      isScheduled: s.status === "scheduled" || !!s.order_status,
+      owner_id: s.owner_id,
+    });
+    const { data } = await supabase
+      .from("customers")
+      .select("id, name")
+      .eq("owner_id", s.owner_id)
+      .order("name");
+    setEditCustomers(data ?? []);
+  };
+
+  const saveEdit = async () => {
+    if (!editing || !isAdmin) return;
+    const quantity = Number(editing.quantity);
+    const price = Number(editing.unit_sale_price);
+    if (!Number.isInteger(quantity) || quantity < 1) return toast.error("Quantidade inválida");
+    if (!(price >= 0)) return toast.error("Valor unitário inválido");
+    const original = sales.find((x) => x.id === editing.id);
+    const p = products.find((x) => x.id === editing.product_id);
+    if (!p) return toast.error("Selecione um produto");
+    const available =
+      Number(p.stock_quantity) + (original?.product_id === p.id ? Number(original.quantity) : 0);
+    if (quantity > available) return toast.error(`${p.name}: estoque insuficiente (${available})`);
+    const patch: SaleUpdate = {
+      product_id: p.id,
+      quantity,
+      unit_sale_price: price,
+      customer_id: editing.customer_id || null,
+      ...(original?.product_id !== p.id ? { unit_cost: Number(p.cost_price) } : {}),
+      ...(editing.isScheduled ? { delivery_date: editing.delivery_date || null } : {}),
+    };
+    setSavingEdit(true);
+    const { error } = await supabase.from("sales").update(patch).eq("id", editing.id);
+    setSavingEdit(false);
+    if (error) return toast.error(error.message);
+    if (original?.order_id) {
+      const siblings = sales.filter((x) => x.order_id === original.order_id);
+      const total = siblings.reduce(
+        (a, x) =>
+          a + (x.id === editing.id ? price * quantity : Number(x.unit_sale_price) * x.quantity),
+        0,
+      );
+      await supabase.from("sales").update({ order_total: total }).eq("order_id", original.order_id);
+    }
+    toast.success("Venda atualizada");
+    setEditing(null);
     load();
   };
 
@@ -766,6 +843,16 @@ function VendasPage() {
                   )}
                 </td>
                 <td className="p-3 text-center">
+                  {isAdmin && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Editar venda"
+                      onClick={() => openEdit(s)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
                   {(!isViewingRep || isAdmin) && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -777,9 +864,8 @@ function VendasPage() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Excluir venda?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            {s.status === "scheduled"
-                              ? "O pedido será removido sem alterar o estoque. Esta ação não pode ser desfeita."
-                              : "O produto voltará ao estoque automaticamente. Esta ação não pode ser desfeita."}
+                            O produto voltará ao estoque automaticamente. Esta ação não pode ser
+                            desfeita.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -797,6 +883,105 @@ function VendasPage() {
           </tbody>
         </table>
       </Card>
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar venda</DialogTitle>
+          </DialogHeader>
+          {editing && (
+            <div className="grid gap-3">
+              <div>
+                <Label>Produto</Label>
+                <Select
+                  value={editing.product_id}
+                  onValueChange={(v) => {
+                    const p = products.find((x) => x.id === v);
+                    setEditing({
+                      ...editing,
+                      product_id: v,
+                      unit_sale_price: p ? String(p.sale_price) : editing.unit_sale_price,
+                    });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Produto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.map((pp) => (
+                      <SelectItem key={pp.id} value={pp.id}>
+                        {pp.name} (estq: {pp.stock_quantity})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Cliente</Label>
+                <Select
+                  value={editing.customer_id || "none"}
+                  onValueChange={(v) =>
+                    setEditing({ ...editing, customer_id: v === "none" ? "" : v })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem cliente</SelectItem>
+                    {editCustomers.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Quantidade</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={editing.quantity}
+                    onChange={(e) => setEditing({ ...editing, quantity: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Valor unitário</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={editing.unit_sale_price}
+                    onChange={(e) => setEditing({ ...editing, unit_sale_price: e.target.value })}
+                  />
+                </div>
+              </div>
+              {editing.isScheduled && (
+                <div>
+                  <Label>Data de entrega</Label>
+                  <Input
+                    type="date"
+                    value={editing.delivery_date}
+                    onChange={(e) => setEditing({ ...editing, delivery_date: e.target.value })}
+                  />
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                O estoque é ajustado automaticamente pela diferença.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={saveEdit} disabled={savingEdit}>
+              Salvar alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
