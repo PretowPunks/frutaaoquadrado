@@ -26,6 +26,7 @@ import { fmtBRL } from "@/lib/format";
 import { useSort, SortHeader } from "@/hooks/use-sort";
 import { useScope, scopeProducts } from "@/hooks/use-scope";
 import { useAuth } from "@/hooks/use-auth";
+import { stockAdjustmentQuantity } from "@/lib/stock-adjustment";
 
 export const Route = createFileRoute("/_app/produtos")({
   head: () => ({
@@ -71,6 +72,9 @@ function ProdutosPage() {
   const [openLot, setOpenLot] = useState(false);
   const [lotItems, setLotItems] = useState<LotItem[]>([emptyLotItem()]);
   const [savingLot, setSavingLot] = useState(false);
+  const [adjusting, setAdjusting] = useState<Product | null>(null);
+  const [adjustedQuantity, setAdjustedQuantity] = useState("");
+  const [savingAdjustment, setSavingAdjustment] = useState(false);
 
   const load = async () => {
     // Representantes consultam o catálogo central; somente a matriz o administra.
@@ -264,6 +268,41 @@ function ProdutosPage() {
     a.click();
     URL.revokeObjectURL(url);
     toast.success(`${items.length} itens exportados`);
+  };
+
+  const adjustStock = async () => {
+    if (!isAdmin || !adjusting || savingAdjustment) return;
+    const quantity = stockAdjustmentQuantity(adjustedQuantity);
+    if (quantity === null) return toast.error("Informe uma quantidade inteira válida, igual ou maior que zero.");
+    setSavingAdjustment(true);
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .update({ stock_quantity: quantity })
+        .eq("id", adjusting.id)
+        .is("owner_id", null)
+        .eq("stock_quantity", adjusting.stock_quantity)
+        .select("id")
+        .single();
+      if (error?.code === "PGRST116" || (!error && !data)) {
+        const { data: current, error: readError } = await supabase
+          .from("products").select("stock_quantity").eq("id", adjusting.id)
+          .is("owner_id", null).single();
+        if (readError) throw readError;
+        if (current) setAdjusting({ ...adjusting, stock_quantity: current.stock_quantity });
+        await load();
+        toast.error("O saldo foi alterado. Confira o saldo atual e confirme novamente.");
+        return;
+      }
+      if (error) throw error;
+      toast.success("Saldo de estoque atualizado");
+      setAdjusting(null);
+      await load();
+    } catch (error) {
+      toast.error(String((error as { message?: string })?.message ?? "Não foi possível atualizar o saldo."));
+    } finally {
+      setSavingAdjustment(false);
+    }
   };
 
   const filtered = products.filter((p) => {
@@ -537,7 +576,21 @@ function ProdutosPage() {
                     (p.stock_quantity <= p.low_stock_threshold ? "text-destructive" : "")
                   }
                 >
-                  {p.stock_quantity}
+                  {isAdmin ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="font-semibold"
+                      aria-label={`Editar saldo de ${p.name}`}
+                      title="Editar saldo de estoque"
+                      onClick={() => {
+                        setAdjusting(p);
+                        setAdjustedQuantity(String(p.stock_quantity));
+                      }}
+                    >
+                      {p.stock_quantity}<Pencil className="ml-2 h-3 w-3" />
+                    </Button>
+                  ) : p.stock_quantity}
                 </td>
                 {isAdmin && <td className="p-3 text-right">{p.low_stock_threshold}</td>}
                 {isAdmin && (
@@ -568,6 +621,26 @@ function ProdutosPage() {
           </tbody>
         </table>
       </Card>
+
+      {isAdmin && <Dialog open={Boolean(adjusting)} onOpenChange={(next) => {
+        if (!next && !savingAdjustment) setAdjusting(null);
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Editar saldo de estoque</DialogTitle></DialogHeader>
+          <p className="font-medium">{adjusting?.name}</p>
+          <p className="text-sm text-muted-foreground">Saldo atual: {adjusting?.stock_quantity} un.</p>
+          <div className="space-y-2">
+            <Label htmlFor="adjust-stock">Novo saldo (un.)</Label>
+            <Input id="adjust-stock" type="number" min={0} max={2147483647} step={1}
+              inputMode="numeric" value={adjustedQuantity} disabled={savingAdjustment}
+              onChange={(event) => setAdjustedQuantity(event.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={savingAdjustment} onClick={() => setAdjusting(null)}>Cancelar</Button>
+            <Button disabled={savingAdjustment} onClick={adjustStock}>{savingAdjustment ? "Salvando..." : "Salvar saldo"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>}
 
       <Dialog open={openReplenish} onOpenChange={setOpenReplenish}>
         <DialogContent className="max-w-3xl">
