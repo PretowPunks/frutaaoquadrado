@@ -919,7 +919,9 @@ function VendasPage() {
                 <Label>Cliente</Label>
                 <Select
                   value={editing.customer_id || "none"}
-                  onValueChange={(v) => setEditing({ ...editing, customer_id: v === "none" ? "" : v })}
+                  onValueChange={(v) =>
+                    setEditing({ ...editing, customer_id: v === "none" ? "" : v })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Cliente" />
