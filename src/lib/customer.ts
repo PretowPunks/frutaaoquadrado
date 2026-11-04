@@ -87,7 +87,9 @@ function formatCustomerAddress(customer: {
   return [
     [customer.street, customer.address_number].filter(Boolean).join(", "),
     [customer.neighborhood, customer.city].filter(Boolean).join(", "),
-  ].filter(Boolean).join(" — ");
+  ]
+    .filter(Boolean)
+    .join(" — ");
 }
 
 export function customerPayload(form: CustomerForm) {

@@ -196,7 +196,13 @@ function ClientesPage() {
       setOpen(false);
       await load();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : String((error as { message?: string })?.message ?? "Não foi possível salvar o cliente."));
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : String(
+              (error as { message?: string })?.message ?? "Não foi possível salvar o cliente.",
+            ),
+      );
     } finally {
       setSavingCustomer(false);
     }
@@ -390,13 +396,25 @@ function ClientesPage() {
             <p className="text-sm text-muted-foreground">Carteira de {viewingRepLabel}</p>
           )}
         </div>
-        <Dialog open={open} onOpenChange={(next) => {
-          if (savingCustomer) return;
-          setOpen(next);
-          if (!next) { setEditingCustomer(null); setForm(emptyCustomerForm); }
-        }}>
+        <Dialog
+          open={open}
+          onOpenChange={(next) => {
+            if (savingCustomer) return;
+            setOpen(next);
+            if (!next) {
+              setEditingCustomer(null);
+              setForm(emptyCustomerForm);
+            }
+          }}
+        >
           <DialogTrigger asChild>
-            <Button disabled={!canCreate} onClick={() => { setEditingCustomer(null); setForm(emptyCustomerForm); }}>
+            <Button
+              disabled={!canCreate}
+              onClick={() => {
+                setEditingCustomer(null);
+                setForm(emptyCustomerForm);
+              }}
+            >
               <Plus className="mr-2 h-4 w-4" /> Novo Cliente
             </Button>
           </DialogTrigger>
@@ -404,7 +422,10 @@ function ClientesPage() {
             <DialogHeader>
               <DialogTitle>{editingCustomer ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
             </DialogHeader>
-            <fieldset disabled={savingCustomer} className="grid max-h-[65dvh] grid-cols-1 gap-3 overflow-y-auto sm:grid-cols-2">
+            <fieldset
+              disabled={savingCustomer}
+              className="grid max-h-[65dvh] grid-cols-1 gap-3 overflow-y-auto sm:grid-cols-2"
+            >
               <Field label="Nome do Cliente *">
                 <Input
                   required
@@ -455,7 +476,10 @@ function ClientesPage() {
               <div className="sm:col-span-2">
                 <Label>Cidade</Label>
                 {!isAdmin && allowedCities.length > 0 ? (
-                  <Select value={form.city || "__none__"} onValueChange={(value) => updateForm("city", value === "__none__" ? "" : value)}>
+                  <Select
+                    value={form.city || "__none__"}
+                    onValueChange={(value) => updateForm("city", value === "__none__" ? "" : value)}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione uma cidade atribuída" />
                     </SelectTrigger>
@@ -478,7 +502,9 @@ function ClientesPage() {
               </div>
             </fieldset>
             <DialogFooter>
-              <Button onClick={create} disabled={savingCustomer}>{savingCustomer ? "Salvando..." : "Salvar"}</Button>
+              <Button onClick={create} disabled={savingCustomer}>
+                {savingCustomer ? "Salvando..." : "Salvar"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -546,27 +572,27 @@ function ClientesPage() {
                   </div>
                   {!isViewingRep && (
                     <div className="flex shrink-0 gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Editar cliente ${selected.name}`}
-                      title="Editar cliente"
-                      onClick={() => {
-                        setEditingCustomer(selected);
-                        setForm(customerToForm(selected));
-                        setOpen(true);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => remove(selected.id)}
-                      aria-label={`Remover ${selected.name}`}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Editar cliente ${selected.name}`}
+                        title="Editar cliente"
+                        onClick={() => {
+                          setEditingCustomer(selected);
+                          setForm(customerToForm(selected));
+                          setOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => remove(selected.id)}
+                        aria-label={`Remover ${selected.name}`}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   )}
                 </div>
