@@ -37,6 +37,7 @@ export function onlyDigits(value: string) {
 
 export function maskPhone(value: string) {
   const digits = onlyDigits(value).slice(0, 11);
+  if (!digits) return "";
   if (digits.length <= 2) return digits.replace(/^(\d{0,2})/, "($1");
   if (digits.length <= 6) return digits.replace(/^(\d{2})(\d+)/, "($1) $2");
   if (digits.length <= 10) return digits.replace(/^(\d{2})(\d{4})(\d+)/, "($1) $2-$3");
@@ -63,18 +64,56 @@ export function normalizeCity(value: string) {
 }
 
 export function customerAddress(customer: Customer) {
-  if (customer.street && customer.address_number && customer.neighborhood && customer.city) {
-    return `${customer.street}, ${customer.address_number} — ${customer.neighborhood}, ${customer.city}`;
-  }
-  return customer.address || "—";
+  return formatCustomerAddress(customer) || customer.address || "—";
 }
 
 export function validateCustomer(form: CustomerForm) {
-  if (Object.values(form).some((value) => !value.trim()))
-    return "Preencha todos os campos obrigatórios";
+  if (!form.name.trim()) return "Informe o nome do cliente";
   const phoneLength = onlyDigits(form.phone).length;
-  if (phoneLength !== 10 && phoneLength !== 11) return "Informe um telefone válido";
+  if (form.phone.trim() && phoneLength !== 10 && phoneLength !== 11)
+    return "Informe um telefone válido";
   const documentLength = onlyDigits(form.documentNumber).length;
-  if (documentLength !== 11 && documentLength !== 14) return "Informe um CPF ou CNPJ válido";
+  if (form.documentNumber.trim() && documentLength !== 11 && documentLength !== 14)
+    return "Informe um CPF ou CNPJ válido";
   return null;
+}
+
+function formatCustomerAddress(customer: {
+  street: string | null;
+  address_number: string | null;
+  neighborhood: string | null;
+  city: string | null;
+}) {
+  return [
+    [customer.street, customer.address_number].filter(Boolean).join(", "),
+    [customer.neighborhood, customer.city].filter(Boolean).join(", "),
+  ]
+    .filter(Boolean)
+    .join(" — ");
+}
+
+export function customerPayload(form: CustomerForm) {
+  const nullable = (value: string) => value.trim() || null;
+  const fields = {
+    name: form.name.trim(),
+    phone: nullable(form.phone),
+    document_number: nullable(form.documentNumber),
+    street: nullable(form.street),
+    address_number: nullable(form.addressNumber),
+    neighborhood: nullable(form.neighborhood),
+    city: nullable(form.city),
+  };
+  return { ...fields, address: formatCustomerAddress(fields) || null };
+}
+
+export function customerToForm(customer: Customer): CustomerForm {
+  return {
+    name: customer.name,
+    phone: customer.phone ?? "",
+    documentNumber: customer.document_number ?? "",
+    street: customer.street ?? "",
+    addressNumber: customer.address_number ?? "",
+    neighborhood: customer.neighborhood ?? "",
+    city: customer.city ?? "",
+  };
 }

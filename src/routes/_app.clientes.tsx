@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CalendarPlus, Copy, FileText, Plus, Printer, Search, Trash2 } from "lucide-react";
+import { CalendarPlus, Copy, FileText, Pencil, Plus, Printer, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { fmtBRL } from "@/lib/format";
 import { useSort, SortHeader } from "@/hooks/use-sort";
@@ -32,6 +32,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
   customerAddress,
+  customerPayload,
+  customerToForm,
   emptyCustomerForm,
   maskDocument,
   maskPhone,
@@ -91,6 +93,8 @@ function ClientesPage() {
   const [history, setHistory] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<CustomerForm>(emptyCustomerForm);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [savingCustomer, setSavingCustomer] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [reportOpen, setReportOpen] = useState(false);
   const [orderOpen, setOrderOpen] = useState(false);
@@ -166,31 +170,42 @@ function ClientesPage() {
 
   const create = async () => {
     if (isViewingRep) return toast.error("Você está apenas consultando os dados do representante.");
+    if (savingCustomer) return;
     const validationError = validateCustomer(form);
     if (validationError) return toast.error(validationError);
     if (
       !isAdmin &&
+      form.city.trim() &&
       !allowedCities.some((city) => normalizeCity(city) === normalizeCity(form.city))
     ) {
       return toast.error("Escolha uma das cidades atribuídas pela Matriz");
     }
-    const address = `${form.street.trim()}, ${form.addressNumber.trim()} — ${form.neighborhood.trim()}, ${form.city.trim()}`;
-    const { error } = await supabase.from("customers").insert({
-      name: form.name.trim(),
-      phone: form.phone,
-      document_number: form.documentNumber,
-      street: form.street.trim(),
-      address_number: form.addressNumber.trim(),
-      neighborhood: form.neighborhood.trim(),
-      city: form.city.trim(),
-      address,
-      owner_id: ownerId,
-    });
-    if (error) return toast.error(error.message);
-    toast.success("Cliente cadastrado");
-    setForm(emptyCustomerForm);
-    setOpen(false);
-    void load();
+    setSavingCustomer(true);
+    try {
+      const payload = customerPayload(form);
+      const query = editingCustomer
+        ? supabase.from("customers").update(payload).eq("id", editingCustomer.id)
+        : supabase.from("customers").insert({ ...payload, owner_id: ownerId });
+      const { data, error } = await query.select("*").single();
+      if (error) throw error;
+      if (!data) throw new Error("Não foi possível salvar o cliente.");
+      if (editingCustomer) setSelected(data as Customer);
+      toast.success(editingCustomer ? "Cliente atualizado" : "Cliente cadastrado");
+      setForm(emptyCustomerForm);
+      setEditingCustomer(null);
+      setOpen(false);
+      await load();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : String(
+              (error as { message?: string })?.message ?? "Não foi possível salvar o cliente.",
+            ),
+      );
+    } finally {
+      setSavingCustomer(false);
+    }
   };
 
   const addOrderItem = () => {
@@ -370,7 +385,7 @@ function ClientesPage() {
     });
   }, [customers, profiles, search]);
 
-  const canCreate = !isViewingRep && (isAdmin || allowedCities.length > 0);
+  const canCreate = !isViewingRep;
 
   return (
     <div className="space-y-6">
@@ -381,19 +396,39 @@ function ClientesPage() {
             <p className="text-sm text-muted-foreground">Carteira de {viewingRepLabel}</p>
           )}
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+          open={open}
+          onOpenChange={(next) => {
+            if (savingCustomer) return;
+            setOpen(next);
+            if (!next) {
+              setEditingCustomer(null);
+              setForm(emptyCustomerForm);
+            }
+          }}
+        >
           <DialogTrigger asChild>
-            <Button disabled={!canCreate}>
+            <Button
+              disabled={!canCreate}
+              onClick={() => {
+                setEditingCustomer(null);
+                setForm(emptyCustomerForm);
+              }}
+            >
               <Plus className="mr-2 h-4 w-4" /> Novo Cliente
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Novo Cliente</DialogTitle>
+              <DialogTitle>{editingCustomer ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
             </DialogHeader>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label="Nome do Cliente">
+            <fieldset
+              disabled={savingCustomer}
+              className="grid max-h-[65dvh] grid-cols-1 gap-3 overflow-y-auto sm:grid-cols-2"
+            >
+              <Field label="Nome do Cliente *">
                 <Input
+                  required
                   value={form.name}
                   onChange={(event) => updateForm("name", event.target.value)}
                   maxLength={120}
@@ -441,11 +476,15 @@ function ClientesPage() {
               <div className="sm:col-span-2">
                 <Label>Cidade</Label>
                 {!isAdmin && allowedCities.length > 0 ? (
-                  <Select value={form.city} onValueChange={(value) => updateForm("city", value)}>
+                  <Select
+                    value={form.city || "__none__"}
+                    onValueChange={(value) => updateForm("city", value === "__none__" ? "" : value)}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione uma cidade atribuída" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__none__">Não informada</SelectItem>
                       {allowedCities.map((city) => (
                         <SelectItem key={city} value={city}>
                           {city}
@@ -461,20 +500,15 @@ function ClientesPage() {
                   />
                 )}
               </div>
-            </div>
+            </fieldset>
             <DialogFooter>
-              <Button onClick={create}>Salvar</Button>
+              <Button onClick={create} disabled={savingCustomer}>
+                {savingCustomer ? "Salvando..." : "Salvar"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
-
-      {!isAdmin && allowedCities.length === 0 && (
-        <Card className="border-destructive/40 p-4 text-sm text-muted-foreground">
-          A Matriz precisa atribuir ao menos uma cidade ao seu perfil antes de você cadastrar
-          clientes.
-        </Card>
-      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="space-y-3 p-4 lg:col-span-1">
@@ -537,14 +571,29 @@ function ClientesPage() {
                     )}
                   </div>
                   {!isViewingRep && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => remove(selected.id)}
-                      aria-label={`Remover ${selected.name}`}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="flex shrink-0 gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Editar cliente ${selected.name}`}
+                        title="Editar cliente"
+                        onClick={() => {
+                          setEditingCustomer(selected);
+                          setForm(customerToForm(selected));
+                          setOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => remove(selected.id)}
+                        aria-label={`Remover ${selected.name}`}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   )}
                 </div>
                 <p className="text-sm">
