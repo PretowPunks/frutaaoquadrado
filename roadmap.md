@@ -43,6 +43,8 @@
 - [x] Atualizar entrada de lote diretamente em products, preservando custo não informado
 - [x] Validar somas, produtos repetidos e falhas sem duplicar entradas
 
-- [ ] Permitir cadastro de clientes apenas com nome e edição do cliente selecionado
-- [ ] Permitir correção direta do saldo do estoque pela Matriz
-- [ ] Validar regras e identificar eventuais bloqueios no banco externo
+- [x] Permitir cadastro de clientes apenas com nome e edição do cliente selecionado na interface
+- [x] Permitir correção direta do saldo do estoque pela Matriz
+- [x] Validar regras com cinco testes e identificar restrições antigas nos scripts do banco
+- [ ] Aplicar optional-customer-fields.sql no banco externo (bloqueado: sem acesso administrativo ao banco externo)
+- [ ] Verificar cadastro/edição e correção de estoque com conta autenticada (bloqueado: sessão do banco externo indisponível)
